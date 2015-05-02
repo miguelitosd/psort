@@ -4,13 +4,14 @@ my $tot=0;
 my %data=();
 
 # Load all the input into a hash to easily munge, also count total lines for %
+# Using a hash also essentially gives us the sort | uniq -c
 while (<>) {
 		chomp;
 		$data{$_}++;
 		$tot++;
 }
 
-# Run through keys based on count (i.e. sort | uniq -c | sort -n
+# Run through keys based on count (i.e. sort -n)
 foreach my $key (sort { $data{$a} <=> $data{$b} } keys %data) {
         # Get % of total 
 		my $p=(($data{$key}/$tot)*100);
