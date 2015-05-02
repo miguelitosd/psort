@@ -1,0 +1,28 @@
+#!/usr/bin/perl -w
+use strict;
+my $tot=0;
+my %data=();
+
+while (<>) {
+		chomp;
+		$data{$_}++;
+		$tot++;
+}
+
+my @keys = sort { $data{$a} <=> $data{$b} } keys %data;
+#foreach my $key (sort { $data{$a} cmp $data{$b} } keys %data) {
+foreach my $key (sort { $data{$a} <=> $data{$b} } keys %data) {
+		my $p=(($data{$key}/$tot)*100);
+		$~ = "OUT";
+		write;
+		format OUT =
+@##.####% @########### @<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+$p,$data{$key},$key
+.
+}
+$~ = "FOOT";
+write;
+format FOOT =
+Total:    @###########
+$tot
+.
