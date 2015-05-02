@@ -3,15 +3,16 @@ use strict;
 my $tot=0;
 my %data=();
 
+# Load all the input into a hash to easily munge, also count total lines for %
 while (<>) {
 		chomp;
 		$data{$_}++;
 		$tot++;
 }
 
-my @keys = sort { $data{$a} <=> $data{$b} } keys %data;
-#foreach my $key (sort { $data{$a} cmp $data{$b} } keys %data) {
+# Run through keys based on count (i.e. sort | uniq -c | sort -n
 foreach my $key (sort { $data{$a} <=> $data{$b} } keys %data) {
+        # Get % of total 
 		my $p=(($data{$key}/$tot)*100);
 		$~ = "OUT";
 		write;
