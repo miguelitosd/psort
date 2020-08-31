@@ -1,30 +1,58 @@
 #!/usr/bin/perl -w
 use strict;
+use Getopt::Long;
 my $tot=0;
 my %data=();
 
-# Load all the input into a hash to easily munge, also count total lines for %
-# Using a hash also essentially gives us the sort | uniq -c
+GetOptions(
+    "csv|c"     => \my $csv,
+    "csvall|a"  => \my $csvall,
+    "help|h"    => sub { usage(); exit 0; }
+);
+
 while (<>) {
 		chomp;
-		$data{$_}++;
+		$data{$_}++; # Gets us uniq -c equiv
 		$tot++;
 }
 
-# Run through keys based on count (i.e. sort -n)
-foreach my $key (sort { $data{$a} <=> $data{$b} } keys %data) {
-        # Get % of total 
+if ($tot eq 0) { exit; }
+# Get max width of number column
+
+my $len = length($tot);
+foreach my $key (sort { $data{$a} <=> $data{$b} } keys %data) { # Gets us the sort | (above uniq -c) | sort -n equiv
 		my $p=(($data{$key}/$tot)*100);
-		$~ = "OUT";
-		write;
-		format OUT =
-@##.####% @########### @<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
-$p,$data{$key},$key
-.
+        if (($csv) or ($csvall)) {
+            if ($csvall) {
+                $key =~ s/\s+/,/g;
+            }
+            if ( $p < 10 ) {
+                printf("%1.4f%s,%d,%s\n",$p,'%',$data{$key},$key);
+            } else {
+                printf("%2.4f%s,%d,%s\n",$p,'%',$data{$key},$key);
+            }
+        } else {
+            if ( $p < 10 ) {
+                printf(" %1.4f%s  %${len}d %s\n",$p,'%',$data{$key},$key);
+            } else {
+                printf("%2.4f%s  %${len}d %s\n",$p,'%',$data{$key},$key);
+            }
+        }
 }
-$~ = "FOOT";
-write;
-format FOOT =
-Total:    @###########
-$tot
-.
+if ($csv) {
+    printf("%8s,%${len}d\n",'Total:',$tot);
+} else {
+    printf("%8s  %${len}d\n",'Total:',$tot);
+}
+
+
+sub usage {
+    print "Usage: $0 [--csv] [--csvall] [--help]
+    --csv   : Do output as csv rather than formatted for a human to read
+    --csvall: Do output as csv replacing any/all whitespaces with commas
+    --help  : Output this help info
+
+Synopsis: Takes input and essentially does the equivalent of `sort | uniq -c | sort -n` 
+with added percentages and total info, default output is nicely formatted for humans to read.
+";
+}
