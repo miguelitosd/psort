@@ -1,7 +1,7 @@
 psort
 =====
 
-Initially my original per script I wrote ages ago that not only combines the commands:
+Initially my original perl script I wrote ages ago that not only combines the commands:
 `| sort | uniq -c | sort -n`
 into one script, but includes percentages (the thing I initially wrote it to get) and
 aligns columns and such.
