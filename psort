@@ -64,7 +64,7 @@ sub usage {
     print "Usage: $0 [--csv] [--csvall] [--help]
     --csv       : Do output as csv rather than formatted for a human to read
     --csvall    : Do output as csv replacing any/all whitespaces with commas
-    --decimnal  : Specify how many decimal places to compute (default 4)
+    --decimal   : Specify how many decimal places to compute (default 4)
     --numeric   : If the data being fed to psort is numeric this flag will sort the
                 :  output by that data instead of by counts
     --help      : Output this help info
