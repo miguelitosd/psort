@@ -22,9 +22,15 @@ Later I kept on improving with some options that came in handy.
 Usage: ./psort [--csv] [--csvall] [--help]
     --csv       : Do output as csv rather than formatted for a human to read
     --csvall    : Do output as csv replacing any/all whitespaces with commas
-    --decimal   : Specify how many decimal places to compute (default 4)
+    --decimal  : Specify how many decimal places to compute (default 4)
     --numeric   : If the data being fed to psort is numeric this flag will sort the
                 :  output by that data instead of by counts
+    --min       : Give a minimum count below which we should throw out those, to
+                   allow trimming smaller values (compute % based upon what's left)
+    --max       : Give a maximum count above which we should throw out those, to
+                   allow trimming larger values  (compute % based upon what's left)
+    --fullperc  : Only with a min/max, still output the % based upon the full count
+                   vs only what matched the filter
     --help      : Output this help info
 
 Synopsis: Takes input and essentially does the equivalent of `sort | uniq -c | sort -n` 
