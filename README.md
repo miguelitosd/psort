@@ -31,6 +31,8 @@ Usage: ./psort [--csv] [--csvall] [--help]
                    allow trimming larger values  (compute % based upon what's left)
     --fullperc  : Only with a min/max, still output the % based upon the full count
                    vs only what matched the filter
+    --ignore    : When using min/max and fullperc, don't include the [deleted] line
+                   that shows us the full 100%
     --help      : Output this help info
 
 Synopsis: Takes input and essentially does the equivalent of `sort | uniq -c | sort -n` 
