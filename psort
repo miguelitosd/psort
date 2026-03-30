@@ -15,6 +15,7 @@ GetOptions(
     "max|x=i"       => \my $maxcount,
     "verbose|v"     => \my $verbose,
     "fullperc|f"    => \my $fullperc,
+    "ignore|i"      => \my $ignoreExcluded,
 );
 
 if (($fullperc) and (!$mincount) and (!$maxcount)) {
@@ -43,9 +44,11 @@ if (($mincount) or ($maxcount)) {
     foreach my $key (keys %data) {
         if (($mincount) and ($data{$key} < $mincount)) {
             $tot-=$data{$key} unless($fullperc);
+            $data{'[excluded]'}+=$data{$key} unless($ignoreExcluded);
             delete($data{$key});
         } elsif (($maxcount) and ($data{$key} > $maxcount)) {
             $tot-=$data{$key} unless($fullperc);
+            $data{'[excluded]'}+=$data{$key} unless($ignoreExcluded);
             delete($data{$key});
         }
     }
@@ -105,7 +108,7 @@ sub usage {
     print "Usage: $0 [--csv] [--csvall] [--help]
     --csv       : Do output as csv rather than formatted for a human to read
     --csvall    : Do output as csv replacing any/all whitespaces with commas
-    --decimnal  : Specify how many decimal places to compute (default 4)
+    --decimal   : Specify how many decimal places to compute (default 4)
     --numeric   : If the data being fed to psort is numeric this flag will sort the
                 :  output by that data instead of by counts
     --min       : Give a minimum count below which we should throw out those, to
@@ -114,6 +117,8 @@ sub usage {
                    allow trimming larger values  (compute % based upon what's left)
     --fullperc  : Only with a min/max, still output the % based upon the full count
                    vs only what matched the filter
+    --ignore    : When using min/max and fullperc, don't include the [excluded] line
+                   that shows us the full 100%
     --help      : Output this help info
 
 Synopsis: Takes input and essentially does the equivalent of `sort | uniq -c | sort -n` 
