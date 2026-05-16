@@ -20,8 +20,24 @@ func main() {
 	decimal := flag.Int("decimal", 4, "Specify how many decimal places to compute (default 4)")
 	flag.IntVar(decimal, "d", 4, "")
 	numeric := flag.Bool("numeric", false, "Sort output by numeric value of data instead of by counts")
+	mincount := flag.Int("min", 0, "Minimum count; entries below this are excluded")
+	flag.IntVar(mincount, "m", 0, "")
+	maxcount := flag.Int("max", 0, "Maximum count; entries above this are excluded")
+	flag.IntVar(maxcount, "x", 0, "")
+	fullperc := flag.Bool("fullperc", false, "With min/max, compute % based on full count rather than filtered count")
+	flag.BoolVar(fullperc, "f", false, "")
+	ignoreExcluded := flag.Bool("ignore", false, "With min/max, suppress the [excluded] summary line")
+	flag.BoolVar(ignoreExcluded, "i", false, "")
+	verbose := flag.Bool("verbose", false, "With min/max, print key/count totals before and after filtering")
+	flag.BoolVar(verbose, "v", false, "")
 	flag.Usage = usage
 	flag.Parse()
+
+	if *fullperc && *mincount == 0 && *maxcount == 0 {
+		fmt.Fprintln(os.Stderr, "ERROR: cannot use fullperc without either min or max")
+		usage()
+		os.Exit(1)
+	}
 
 	counts := make(map[string]int)
 	var tot int
@@ -47,6 +63,44 @@ func main() {
 		}
 	} else {
 		readLines(os.Stdin)
+	}
+
+	if tot == 0 {
+		return
+	}
+
+	if *mincount > 0 || *maxcount > 0 {
+		if *verbose {
+			tc := 0
+			for _, v := range counts {
+				tc += v
+			}
+			fmt.Fprintf(os.Stderr, "# keys/counts before: %d / %d\n", len(counts), tc)
+		}
+
+		excluded := 0
+		for key, count := range counts {
+			drop := (*mincount > 0 && count < *mincount) || (*maxcount > 0 && count > *maxcount)
+			if drop {
+				excluded += count
+				if !*fullperc {
+					tot -= count
+				}
+				delete(counts, key)
+			}
+		}
+
+		if excluded > 0 && !*ignoreExcluded {
+			counts["[excluded]"] += excluded
+		}
+
+		if *verbose {
+			tc := 0
+			for _, v := range counts {
+				tc += v
+			}
+			fmt.Fprintf(os.Stderr, "# keys/counts after: %d / %d\n", len(counts), tc)
+		}
 	}
 
 	if tot == 0 {
@@ -91,13 +145,10 @@ func pout(key string, count, tot, lenTot, decimal int, csv, csvall bool) {
 		outKey = reWhitespace.ReplaceAllString(key, ",")
 	}
 
-	// Width: 1 digit before decimal if p < 10, else 2
 	width := 2
 	if p < 10 {
 		width = 1
 	}
-	// Total width = width + 1 (decimal point) + decimal + 1 (%) = width + decimal + 2
-	// We use %*.*f by computing total field width manually.
 	if csv || csvall {
 		fmt.Printf("%*.*f%%,%d,%s\n", width, decimal, p, count, outKey)
 	} else {
@@ -110,13 +161,22 @@ func pout(key string, count, tot, lenTot, decimal int, csv, csvall bool) {
 }
 
 func usage() {
-	fmt.Fprintf(os.Stderr, `Usage: %s [--csv] [--csvall] [--decimal=N] [--numeric] [--help] [file ...]
-    --csv       : Do output as csv rather than formatted for a human to read
-    --csvall    : Do output as csv replacing any/all whitespaces with commas
-    --decimal   : Specify how many decimal places to compute (default 4)
-    --numeric   : If the data being fed to psort is numeric this flag will sort the
-                :  output by that data instead of by counts
-    --help      : Output this help info
+	fmt.Fprintf(os.Stderr, `Usage: %s [options] [file ...]
+    --csv, -c    : Do output as csv rather than formatted for a human to read
+    --csvall, -a : Do output as csv replacing any/all whitespaces with commas
+    --decimal, -d: Specify how many decimal places to compute (default 4)
+    --numeric    : If the data being fed to psort is numeric this flag will sort the
+                 :  output by that data instead of by counts
+    --min, -m    : Give a minimum count below which we should throw out those, to
+                    allow trimming smaller values (compute %% based upon what's left)
+    --max, -x    : Give a maximum count above which we should throw out those, to
+                    allow trimming larger values  (compute %% based upon what's left)
+    --fullperc, -f: Only with a min/max, still output the %% based upon the full count
+                    vs only what matched the filter
+    --ignore, -i : When using min/max, don't include the [excluded] line
+                    that shows us the full 100%%
+    --verbose, -v: When using min/max, print key/count totals before and after filtering
+    --help, -h   : Output this help info
 
 Synopsis: Takes input and essentially does the equivalent of `+"`"+`sort | uniq -c | sort -n`+"`"+`
 with added percentages and total info, default output is nicely formatted for humans to read.

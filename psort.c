@@ -21,25 +21,42 @@ static int    decimal     = 4;
 static int    opt_csv     = 0;
 static int    opt_csvall  = 0;
 static int    opt_numeric = 0;
+static long   opt_min     = 0;
+static long   opt_max     = 0;
+static int    opt_fullperc = 0;
+static int    opt_ignore  = 0;
+static int    opt_verbose = 0;
 
-static void add_entry(const char *key)
+static Entry *find_entry(const char *key)
 {
     for (int i = 0; i < entry_count; i++) {
-        if (strcmp(entries[i].key, key) == 0) {
-            entries[i].count++;
-            tot++;
-            return;
-        }
+        if (strcmp(entries[i].key, key) == 0)
+            return &entries[i];
     }
+    return NULL;
+}
+
+static Entry *new_entry(const char *key)
+{
     if (entry_count == entry_cap) {
         entry_cap = entry_cap ? entry_cap * 2 : 64;
         entries = realloc(entries, (size_t)entry_cap * sizeof(Entry));
         if (!entries) { perror("realloc"); exit(1); }
     }
     entries[entry_count].key   = strdup(key);
-    entries[entry_count].count = 1;
+    entries[entry_count].count = 0;
     if (!entries[entry_count].key) { perror("strdup"); exit(1); }
-    entry_count++;
+    return &entries[entry_count++];
+}
+
+static void add_entry(const char *key)
+{
+    Entry *e = find_entry(key);
+    if (e) {
+        e->count++;
+    } else {
+        new_entry(key)->count = 1;
+    }
     tot++;
 }
 
@@ -107,40 +124,68 @@ static void process_stream(FILE *f)
 
 static void usage(const char *prog)
 {
-    printf("Usage: %s [--csv] [--csvall] [--decimal=N] [--numeric] [--help] [file ...]\n"
-           "    --csv       : Do output as csv rather than formatted for a human to read\n"
-           "    --csvall    : Do output as csv replacing any/all whitespaces with commas\n"
-           "    --decimal   : Specify how many decimal places to compute (default 4)\n"
-           "    --numeric   : If the data being fed to psort is numeric this flag will sort the\n"
-           "                :  output by that data instead of by counts\n"
-           "    --help      : Output this help info\n"
+    printf("Usage: %s [options] [file ...]\n"
+           "    --csv, -c    : Do output as csv rather than formatted for a human to read\n"
+           "    --csvall, -a : Do output as csv replacing any/all whitespaces with commas\n"
+           "    --decimal, -d: Specify how many decimal places to compute (default 4)\n"
+           "    --numeric    : If the data being fed to psort is numeric this flag will sort the\n"
+           "                 :  output by that data instead of by counts\n"
+           "    --min, -m    : Give a minimum count below which we should throw out those, to\n"
+           "                    allow trimming smaller values (compute %% based upon what's left)\n"
+           "    --max, -x    : Give a maximum count above which we should throw out those, to\n"
+           "                    allow trimming larger values  (compute %% based upon what's left)\n"
+           "    --fullperc, -f: Only with a min/max, still output the %% based upon the full count\n"
+           "                    vs only what matched the filter\n"
+           "    --ignore, -i : When using min/max, don't include the [excluded] line\n"
+           "                    that shows us the full 100%%\n"
+           "    --verbose, -v: When using min/max, print key/count totals before and after filtering\n"
+           "    --help, -h   : Output this help info\n"
            "\n"
            "Synopsis: Takes input and essentially does the equivalent of `sort | uniq -c | sort -n`\n"
            "with added percentages and total info, default output is nicely formatted for humans to read.\n",
            prog);
 }
 
+/* sentinel value for --numeric long-only option */
+#define OPT_NUMERIC 256
+
 int main(int argc, char *argv[])
 {
     static const struct option long_options[] = {
-        { "csv",     no_argument,       NULL, 'c' },
-        { "csvall",  no_argument,       NULL, 'a' },
-        { "decimal", required_argument, NULL, 'd' },
-        { "numeric", no_argument,       NULL, 'n' },
-        { "help",    no_argument,       NULL, 'h' },
+        { "csv",      no_argument,       NULL, 'c' },
+        { "csvall",   no_argument,       NULL, 'a' },
+        { "decimal",  required_argument, NULL, 'd' },
+        { "numeric",  no_argument,       NULL, OPT_NUMERIC },
+        { "min",      required_argument, NULL, 'm' },
+        { "max",      required_argument, NULL, 'x' },
+        { "fullperc", no_argument,       NULL, 'f' },
+        { "ignore",   no_argument,       NULL, 'i' },
+        { "verbose",  no_argument,       NULL, 'v' },
+        { "help",     no_argument,       NULL, 'h' },
         { NULL, 0, NULL, 0 }
     };
 
     int opt;
-    while ((opt = getopt_long(argc, argv, "cad:nh", long_options, NULL)) != -1) {
+    while ((opt = getopt_long(argc, argv, "cad:m:x:fivh", long_options, NULL)) != -1) {
         switch (opt) {
-            case 'c': opt_csv     = 1;            break;
-            case 'a': opt_csvall  = 1;            break;
-            case 'd': decimal     = atoi(optarg); break;
-            case 'n': opt_numeric = 1;            break;
+            case 'c': opt_csv      = 1;            break;
+            case 'a': opt_csvall   = 1;            break;
+            case 'd': decimal      = atoi(optarg); break;
+            case OPT_NUMERIC: opt_numeric = 1;     break;
+            case 'm': opt_min      = atol(optarg); break;
+            case 'x': opt_max      = atol(optarg); break;
+            case 'f': opt_fullperc = 1;            break;
+            case 'i': opt_ignore   = 1;            break;
+            case 'v': opt_verbose  = 1;            break;
             case 'h': usage(argv[0]); return 0;
             default:  usage(argv[0]); return 1;
         }
+    }
+
+    if (opt_fullperc && !opt_min && !opt_max) {
+        fprintf(stderr, "ERROR: cannot use fullperc without either min or max\n");
+        usage(argv[0]);
+        return 1;
     }
 
     if (optind < argc) {
@@ -156,10 +201,45 @@ int main(int argc, char *argv[])
 
     if (tot == 0) return 0;
 
+    if (opt_min || opt_max) {
+        if (opt_verbose) {
+            long tc = 0;
+            for (int j = 0; j < entry_count; j++) tc += entries[j].count;
+            fprintf(stderr, "# keys/counts before: %d / %ld\n", entry_count, tc);
+        }
+
+        long excluded_count = 0;
+        int i = 0;
+        while (i < entry_count) {
+            Entry *e = &entries[i];
+            int drop = (opt_min && e->count < opt_min) || (opt_max && e->count > opt_max);
+            if (drop) {
+                excluded_count += e->count;
+                if (!opt_fullperc) tot -= e->count;
+                free(e->key);
+                *e = entries[--entry_count];
+            } else {
+                i++;
+            }
+        }
+
+        if (excluded_count && !opt_ignore) {
+            Entry *ex = new_entry("[excluded]");
+            ex->count = excluded_count;
+        }
+
+        if (opt_verbose) {
+            long tc = 0;
+            for (int j = 0; j < entry_count; j++) tc += entries[j].count;
+            fprintf(stderr, "# keys/counts after: %d / %ld\n", entry_count, tc);
+        }
+    }
+
+    if (tot == 0) return 0;
+
     qsort(entries, (size_t)entry_count, sizeof(Entry),
           opt_numeric ? cmp_by_numeric : cmp_by_count);
 
-    /* width of the total count for column alignment */
     int len = snprintf(NULL, 0, "%ld", tot);
 
     for (int i = 0; i < entry_count; i++)
