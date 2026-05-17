@@ -41,9 +41,9 @@ with added percentages and total info, default output is nicely formatted for hu
 ```
 
 ### Ports
-Playing with Claude, ported to C (`psort.c`) and Go (`psort.go`) to see how it would do.
-Both worked pretty well out of the box.  Probably will play with other language ports as a way
-to get some experience.
+Playing with Claude, ported to C (`psort.c`), Go (`psort.go`), and Python (`psort.py`) to see
+how it would do.  All worked pretty well out of the box.  Probably will play with other language
+ports as a way to get some experience.
 
-The C and Go ports support all the same options as the Perl original.  Both also accept filenames
-as arguments in addition to reading from stdin.
+All ports support the same options as the Perl original and accept filenames as arguments in
+addition to reading from stdin.
