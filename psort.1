@@ -1,11 +1,11 @@
 .TH PSORT 1 "2026-05-17" "psort" "User Commands"
 .SH NAME
-psort \- count input lines, sort by frequency, and display with percentages
+psort.pl \- count input lines, sort by frequency, and display with percentages
 .SH SYNOPSIS
-.B psort
+.B psort.pl
 [\fIOPTIONS\fR] [\fIfile\fR ...]
 .SH DESCRIPTION
-.B psort
+.B psort.pl
 reads lines from standard input or one or more files, counts the occurrences
 of each unique line, and prints them sorted by frequency from least to most
 common (or most to least common with
@@ -125,7 +125,7 @@ Count file extensions under the current directory:
 .PP
 .RS
 .nf
-find . \-type f | sed 's/.*\\.//' | psort
+find . \-type f | sed 's/.*\\.//' | psort.pl
 .fi
 .RE
 .PP
@@ -133,7 +133,7 @@ Show the top 5 most common HTTP status codes (highest count first):
 .PP
 .RS
 .nf
-awk '{print $9}' access.log | psort \-r | head \-5
+awk '{print $9}' access.log | psort.pl \-r | head \-5
 .fi
 .RE
 .PP
@@ -141,7 +141,7 @@ Count word frequencies, keeping only words that appear at least 10 times:
 .PP
 .RS
 .nf
-tr \-cs 'A\-Za\-z' '\\n' < document.txt | tr 'A\-Z' 'a\-z' | psort \-\-min 10
+tr \-cs 'A\-Za\-z' '\\n' < document.txt | tr 'A\-Z' 'a\-z' | psort.pl \-\-min 10
 .fi
 .RE
 .PP
@@ -149,7 +149,7 @@ Show distribution of numeric response times, sorted by value:
 .PP
 .RS
 .nf
-awk '{print $NF}' timings.log | psort \-\-numeric
+awk '{print $NF}' timings.log | psort.pl \-\-numeric
 .fi
 .RE
 .PP
@@ -158,7 +158,7 @@ full total for percentages:
 .PP
 .RS
 .nf
-cat data.txt | psort \-c \-\-min 5 \-\-max 100 \-\-fullperc
+cat data.txt | psort.pl \-c \-\-min 5 \-\-max 100 \-\-fullperc
 .fi
 .RE
 .SH EXIT STATUS
@@ -176,7 +176,7 @@ or
 .SH IMPLEMENTATIONS
 Four implementations are provided, all supporting identical options:
 .TP
-.B psort
+.B psort.pl
 Original Perl implementation.
 .TP
 .B psort_c

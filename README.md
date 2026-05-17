@@ -8,7 +8,7 @@ aligns columns and such.
 
 e.g.
 ```
-❯ find Movies -type f -name \*.mp4 -o -name \*.m4v | awk -F\. '{print $NF}' | ./psort
+❯ find Movies -type f -name \*.mp4 -o -name \*.m4v | awk -F\. '{print $NF}' | ./psort.pl
  2.8649%    42 mp4
 97.1351%  1424 m4v
   Total:  1466
@@ -18,8 +18,8 @@ Later I kept on improving with some options that came in handy.
 
 ## Usage / Help
 ```
-❯ ./psort --help
-Usage: ./psort [options]
+❯ ./psort.pl --help
+Usage: ./psort.pl [options]
     --csv, -c    : Do output as csv rather than formatted for a human to read
     --csvall, -a : Do output as csv replacing any/all whitespaces with commas
     --decimal, -d: Specify how many decimal places to compute (default 4)
