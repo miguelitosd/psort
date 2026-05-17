@@ -40,6 +40,7 @@ def main():
     parser.add_argument('-f', '--fullperc', action='store_true', help='With min/max, compute %% based on full count rather than filtered count')
     parser.add_argument('-i', '--ignore',   action='store_true', help='With min/max, suppress the [excluded] summary line')
     parser.add_argument('-v', '--verbose',  action='store_true', help='With min/max, print key/count totals before and after filtering')
+    parser.add_argument('-r', '--reverse',  action='store_true', help='Reverse the sort order (highest count/value first)')
     parser.add_argument('-h', '--help',     action='help',       help='Output this help info')
     parser.add_argument('files', nargs='*', metavar='file')
 
@@ -101,9 +102,9 @@ def main():
                 return float(k)
             except ValueError:
                 return 0.0
-        keys = sorted(counts, key=numeric_key)
+        keys = sorted(counts, key=numeric_key, reverse=args.reverse)
     else:
-        keys = sorted(counts, key=lambda k: counts[k])
+        keys = sorted(counts, key=lambda k: counts[k], reverse=args.reverse)
 
     len_tot = len(str(tot))
 

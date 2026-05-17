@@ -30,6 +30,8 @@ func main() {
 	flag.BoolVar(ignoreExcluded, "i", false, "")
 	verbose := flag.Bool("verbose", false, "With min/max, print key/count totals before and after filtering")
 	flag.BoolVar(verbose, "v", false, "")
+	reverse := flag.Bool("reverse", false, "Reverse the sort order (highest count/value first)")
+	flag.BoolVar(reverse, "r", false, "")
 	flag.Usage = usage
 	flag.Parse()
 
@@ -116,10 +118,16 @@ func main() {
 		sort.Slice(keys, func(i, j int) bool {
 			vi, _ := strconv.ParseFloat(keys[i], 64)
 			vj, _ := strconv.ParseFloat(keys[j], 64)
+			if *reverse {
+				return vi > vj
+			}
 			return vi < vj
 		})
 	} else {
 		sort.Slice(keys, func(i, j int) bool {
+			if *reverse {
+				return counts[keys[i]] > counts[keys[j]]
+			}
 			return counts[keys[i]] < counts[keys[j]]
 		})
 	}
@@ -176,6 +184,7 @@ func usage() {
     --ignore, -i : When using min/max, don't include the [excluded] line
                     that shows us the full 100%%
     --verbose, -v: When using min/max, print key/count totals before and after filtering
+    --reverse,-r : Reverse the sort order (highest count/value first)
     --help, -h   : Output this help info
 
 Synopsis: Takes input and essentially does the equivalent of `+"`"+`sort | uniq -c | sort -n`+"`"+`

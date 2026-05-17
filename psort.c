@@ -84,6 +84,7 @@ static long  opt_max      = 0;
 static int   opt_fullperc = 0;
 static int   opt_ignore   = 0;
 static int   opt_verbose  = 0;
+static int   opt_reverse  = 0;
 
 /* Collect live hash table slots into the entries[] array. */
 static void ht_to_entries(void)
@@ -114,18 +115,16 @@ static int cmp_by_count(const void *a, const void *b)
 {
     const Entry *ea = (const Entry *)a;
     const Entry *eb = (const Entry *)b;
-    if (ea->count < eb->count) return -1;
-    if (ea->count > eb->count) return  1;
-    return 0;
+    int r = (ea->count > eb->count) - (ea->count < eb->count);
+    return opt_reverse ? -r : r;
 }
 
 static int cmp_by_numeric(const void *a, const void *b)
 {
     double va = atof(((const Entry *)a)->key);
     double vb = atof(((const Entry *)b)->key);
-    if (va < vb) return -1;
-    if (va > vb) return  1;
-    return 0;
+    int r = (va > vb) - (va < vb);
+    return opt_reverse ? -r : r;
 }
 
 static void pout(const Entry *e, int len)
@@ -190,6 +189,7 @@ static void usage(const char *prog)
            "    --ignore, -i : When using min/max, don't include the [excluded] line\n"
            "                    that shows us the full 100%%\n"
            "    --verbose, -v: When using min/max, print key/count totals before and after filtering\n"
+           "    --reverse,-r : Reverse the sort order (highest count/value first)\n"
            "    --help, -h   : Output this help info\n"
            "\n"
            "Synopsis: Takes input and essentially does the equivalent of `sort | uniq -c | sort -n`\n"
@@ -211,12 +211,13 @@ int main(int argc, char *argv[])
         { "fullperc", no_argument,       NULL, 'f' },
         { "ignore",   no_argument,       NULL, 'i' },
         { "verbose",  no_argument,       NULL, 'v' },
+        { "reverse",  no_argument,       NULL, 'r' },
         { "help",     no_argument,       NULL, 'h' },
         { NULL, 0, NULL, 0 }
     };
 
     int opt;
-    while ((opt = getopt_long(argc, argv, "cad:m:x:fivh", long_options, NULL)) != -1) {
+    while ((opt = getopt_long(argc, argv, "cad:m:x:fivrh", long_options, NULL)) != -1) {
         switch (opt) {
             case 'c': opt_csv      = 1;            break;
             case 'a': opt_csvall   = 1;            break;
@@ -227,6 +228,7 @@ int main(int argc, char *argv[])
             case 'f': opt_fullperc = 1;            break;
             case 'i': opt_ignore   = 1;            break;
             case 'v': opt_verbose  = 1;            break;
+            case 'r': opt_reverse  = 1;            break;
             case 'h': usage(argv[0]); return 0;
             default:  usage(argv[0]); return 1;
         }
