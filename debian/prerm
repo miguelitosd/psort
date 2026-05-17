@@ -1,0 +1,11 @@
+#!/bin/sh
+set -e
+
+if [ "$1" = "remove" ]; then
+    update-alternatives --remove psort /usr/bin/psort_c  || true
+    update-alternatives --remove psort /usr/bin/psort_go || true
+    update-alternatives --remove psort /usr/bin/psort.py || true
+    update-alternatives --remove psort /usr/bin/psort.pl || true
+fi
+
+#DEBHELPER#

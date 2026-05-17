@@ -1,0 +1,15 @@
+#!/bin/sh
+set -e
+
+if [ "$1" = "configure" ]; then
+    update-alternatives \
+        --install /usr/bin/psort psort /usr/bin/psort_c  40
+    update-alternatives \
+        --install /usr/bin/psort psort /usr/bin/psort_go 30
+    update-alternatives \
+        --install /usr/bin/psort psort /usr/bin/psort.py 20
+    update-alternatives \
+        --install /usr/bin/psort psort /usr/bin/psort.pl 10
+fi
+
+#DEBHELPER#

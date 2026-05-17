@@ -1,0 +1,5 @@
+psort (1.0.0-1) unstable; urgency=low
+
+  * Initial Debian package.
+
+ -- Mike Marion <mm-claudeai@miguelito.org>  Sun, 17 May 2026 14:55:42 -0700

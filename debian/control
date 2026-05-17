@@ -1,0 +1,28 @@
+Source: psort
+Section: utils
+Priority: optional
+Maintainer: Mike Marion <mm-claudeai@miguelito.org>
+Build-Depends: debhelper-compat (= 13), gcc, golang-go
+Standards-Version: 4.6.2
+Homepage: https://forgejo.miguelito.org/miguelito/psort
+Rules-Requires-Root: no
+
+Package: psort
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}, perl, python3
+Description: count input lines, sort by frequency, display with percentages
+ psort reads lines from standard input or one or more files, counts the
+ occurrences of each unique line, and prints them sorted by frequency
+ with percentages and a total count. It is equivalent to
+ "sort | uniq -c | sort -n" with cleaner formatting and additional
+ filtering and output options.
+ .
+ Four implementations are installed:
+ .
+  psort_c   C        fastest; default via update-alternatives
+  psort_go  Go
+  psort.py  Python 3
+  psort.pl  Perl
+ .
+ /usr/bin/psort is a symlink managed by update-alternatives pointing to
+ psort_c by default. Use "update-alternatives --config psort" to switch.

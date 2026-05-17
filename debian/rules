@@ -1,0 +1,21 @@
+#!/usr/bin/make -f
+export DH_VERBOSE = 1
+
+%:
+	dh $@
+
+override_dh_auto_build:
+	$(CC) $(CFLAGS) $(LDFLAGS) -O2 -o psort_c psort.c
+	go build -o psort_go psort.go
+
+override_dh_auto_install:
+	install -Dm755 psort.pl  debian/psort/usr/bin/psort.pl
+	install -Dm755 psort_c   debian/psort/usr/bin/psort_c
+	install -Dm755 psort_go  debian/psort/usr/bin/psort_go
+	install -Dm755 psort.py  debian/psort/usr/bin/psort.py
+	install -Dm644 psort.1   debian/psort/usr/share/man/man1/psort.1
+
+override_dh_auto_clean:
+	rm -f psort_c psort_go
+
+override_dh_auto_test:
