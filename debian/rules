@@ -19,3 +19,5 @@ override_dh_auto_clean:
 	rm -f psort_c psort_go
 
 override_dh_auto_test:
+
+override_dh_dwz:
