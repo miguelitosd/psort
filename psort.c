@@ -8,6 +8,64 @@
 #include <string.h>
 #include <getopt.h>
 
+/* ── hash table (open addressing, FNV-1a, load ≤ 65 %) ─────────────────── */
+
+typedef struct {
+    char *key;    /* NULL = empty slot */
+    long  count;
+} HSlot;
+
+static HSlot *htable   = NULL;
+static int    ht_cap   = 0;   /* always a power of 2 */
+static int    ht_used  = 0;
+
+static unsigned fnv1a(const char *s)
+{
+    unsigned h = 2166136261u;
+    while (*s) { h ^= (unsigned char)*s++; h *= 16777619u; }
+    return h;
+}
+
+static void ht_grow(void)
+{
+    int new_cap = ht_cap ? ht_cap * 2 : 4096;
+    HSlot *nt = calloc((size_t)new_cap, sizeof(HSlot));
+    if (!nt) { perror("calloc"); exit(1); }
+    int mask = new_cap - 1;
+    for (int i = 0; i < ht_cap; i++) {
+        if (!htable[i].key) continue;
+        int j = (int)(fnv1a(htable[i].key) & (unsigned)mask);
+        while (nt[j].key) j = (j + 1) & mask;
+        nt[j] = htable[i];
+    }
+    free(htable);
+    htable = nt;
+    ht_cap = new_cap;
+}
+
+/* Return the slot for key, inserting a new zero-count slot if absent. */
+static HSlot *ht_get(const char *key)
+{
+    if (ht_used * 100 >= ht_cap * 65)   /* load > 65 % → grow first */
+        ht_grow();
+    int mask = ht_cap - 1;
+    int i = (int)(fnv1a(key) & (unsigned)mask);
+    for (;;) {
+        if (!htable[i].key) {
+            htable[i].key = strdup(key);
+            if (!htable[i].key) { perror("strdup"); exit(1); }
+            htable[i].count = 0;
+            ht_used++;
+            return &htable[i];
+        }
+        if (strcmp(htable[i].key, key) == 0)
+            return &htable[i];
+        i = (i + 1) & mask;
+    }
+}
+
+/* ── output entry list (built after all input is read) ─────────────────── */
+
 typedef struct {
     char *key;
     long  count;
@@ -15,49 +73,41 @@ typedef struct {
 
 static Entry *entries    = NULL;
 static int    entry_count = 0;
-static int    entry_cap   = 0;
-static long   tot         = 0;
-static int    decimal     = 4;
-static int    opt_csv     = 0;
-static int    opt_csvall  = 0;
-static int    opt_numeric = 0;
-static long   opt_min     = 0;
-static long   opt_max     = 0;
-static int    opt_fullperc = 0;
-static int    opt_ignore  = 0;
-static int    opt_verbose = 0;
 
-static Entry *find_entry(const char *key)
+static long  tot          = 0;
+static int   decimal      = 4;
+static int   opt_csv      = 0;
+static int   opt_csvall   = 0;
+static int   opt_numeric  = 0;
+static long  opt_min      = 0;
+static long  opt_max      = 0;
+static int   opt_fullperc = 0;
+static int   opt_ignore   = 0;
+static int   opt_verbose  = 0;
+
+/* Collect live hash table slots into the entries[] array. */
+static void ht_to_entries(void)
 {
-    for (int i = 0; i < entry_count; i++) {
-        if (strcmp(entries[i].key, key) == 0)
-            return &entries[i];
+    entries = malloc((size_t)ht_used * sizeof(Entry));
+    if (!entries) { perror("malloc"); exit(1); }
+    entry_count = 0;
+    for (int i = 0; i < ht_cap; i++) {
+        if (!htable[i].key) continue;
+        entries[entry_count].key   = htable[i].key;
+        entries[entry_count].count = htable[i].count;
+        entry_count++;
     }
-    return NULL;
 }
 
 static Entry *new_entry(const char *key)
 {
-    if (entry_count == entry_cap) {
-        entry_cap = entry_cap ? entry_cap * 2 : 64;
-        entries = realloc(entries, (size_t)entry_cap * sizeof(Entry));
-        if (!entries) { perror("realloc"); exit(1); }
-    }
+    /* Only called after ht_to_entries(), for the "[excluded]" sentinel. */
+    entries = realloc(entries, (size_t)(entry_count + 1) * sizeof(Entry));
+    if (!entries) { perror("realloc"); exit(1); }
     entries[entry_count].key   = strdup(key);
     entries[entry_count].count = 0;
     if (!entries[entry_count].key) { perror("strdup"); exit(1); }
     return &entries[entry_count++];
-}
-
-static void add_entry(const char *key)
-{
-    Entry *e = find_entry(key);
-    if (e) {
-        e->count++;
-    } else {
-        new_entry(key)->count = 1;
-    }
-    tot++;
 }
 
 static int cmp_by_count(const void *a, const void *b)
@@ -117,7 +167,8 @@ static void process_stream(FILE *f)
     while ((linelen = getline(&line, &linecap, f)) > 0) {
         if (linelen > 0 && line[linelen - 1] == '\n')
             line[--linelen] = '\0';
-        add_entry(line);
+        ht_get(line)->count++;
+        tot++;
     }
     free(line);
 }
@@ -146,7 +197,6 @@ static void usage(const char *prog)
            prog);
 }
 
-/* sentinel value for --numeric long-only option */
 #define OPT_NUMERIC 256
 
 int main(int argc, char *argv[])
@@ -201,6 +251,8 @@ int main(int argc, char *argv[])
 
     if (tot == 0) return 0;
 
+    ht_to_entries();   /* move hash table contents into sortable entries[] */
+
     if (opt_min || opt_max) {
         if (opt_verbose) {
             long tc = 0;
@@ -253,6 +305,7 @@ int main(int argc, char *argv[])
     for (int i = 0; i < entry_count; i++)
         free(entries[i].key);
     free(entries);
+    free(htable);
 
     return 0;
 }
