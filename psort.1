@@ -1,0 +1,197 @@
+.TH PSORT 1 "2026-05-17" "psort" "User Commands"
+.SH NAME
+psort \- count input lines, sort by frequency, and display with percentages
+.SH SYNOPSIS
+.B psort
+[\fIOPTIONS\fR] [\fIfile\fR ...]
+.SH DESCRIPTION
+.B psort
+reads lines from standard input or one or more files, counts the occurrences
+of each unique line, and prints them sorted by frequency from least to most
+common (or most to least common with
+.BR \-r ).
+Each output line shows the percentage of the total, the raw count, and the
+value.  A
+.B Total:
+line is printed at the end.
+.PP
+It is equivalent to
+.BR "sort | uniq \-c | sort \-n" ,
+but with cleaner formatting, percentages, and additional filtering options.
+.SH OPTIONS
+.TP
+.BR \-c ", " \-\-csv
+Output in CSV format
+.RI ( "percentage%,count,value" )
+instead of the human-readable aligned columns.
+.TP
+.BR \-a ", " \-\-csvall
+Like
+.BR \-\-csv ,
+and also replace all whitespace within each value with commas.
+.TP
+.BR \-d " \fIN\fR, " \-\-decimal =\fIN\fR
+Number of decimal places to use for percentages.  Default is
+.BR 4 .
+.TP
+.B \-\-numeric
+Sort by the numeric value of the input lines rather than by occurrence count.
+Useful when input lines are numbers and you want them in numeric order.
+.TP
+.BR \-m " \fIN\fR, " \-\-min =\fIN\fR
+Exclude entries whose count is below
+.IR N .
+Excluded counts are accumulated into an
+.B [excluded]
+summary line unless
+.B \-\-ignore
+is given.  By default the total and percentages are recomputed from the
+remaining entries; see
+.B \-\-fullperc
+to override this.
+.TP
+.BR \-x " \fIN\fR, " \-\-max =\fIN\fR
+Exclude entries whose count is above
+.IR N .
+Operates the same way as
+.BR \-\-min .
+.TP
+.BR \-f ", " \-\-fullperc
+When used with
+.B \-\-min
+or
+.BR \-\-max ,
+compute percentages based on the full original total rather than the
+count of the filtered entries.
+Requires at least one of
+.B \-\-min
+or
+.BR \-\-max .
+.TP
+.BR \-i ", " \-\-ignore
+When used with
+.B \-\-min
+or
+.BR \-\-max ,
+suppress the
+.B [excluded]
+summary line that would otherwise account for the filtered-out entries.
+.TP
+.BR \-v ", " \-\-verbose
+When used with
+.B \-\-min
+or
+.BR \-\-max ,
+print to standard error the number of keys and total count before and after
+filtering.
+.TP
+.BR \-r ", " \-\-reverse
+Reverse the sort order so the highest count (or highest numeric value with
+.BR \-\-numeric )
+appears first.
+.TP
+.BR \-h ", " \-\-help
+Print a usage summary and exit.
+.SH OUTPUT FORMAT
+Default (human-readable) output format per line:
+.PP
+.RS
+.nf
+\fIpercentage\fR%  \fIcount\fR \fIvalue\fR
+.fi
+.RE
+.PP
+Percentages below 10 are padded with a leading space so the decimal points
+align.  The count column is right-justified to the width of the total count.
+.PP
+CSV output
+.RB ( \-c " or " \-a ):
+.PP
+.RS
+.nf
+\fIpercentage\fR%,\fIcount\fR,\fIvalue\fR
+.fi
+.RE
+.PP
+The final line in either format is:
+.PP
+.RS
+.nf
+  Total:  \fIN\fR
+.fi
+.RE
+.SH EXAMPLES
+Count file extensions under the current directory:
+.PP
+.RS
+.nf
+find . \-type f | sed 's/.*\\.//' | psort
+.fi
+.RE
+.PP
+Show the top 5 most common HTTP status codes (highest count first):
+.PP
+.RS
+.nf
+awk '{print $9}' access.log | psort \-r | head \-5
+.fi
+.RE
+.PP
+Count word frequencies, keeping only words that appear at least 10 times:
+.PP
+.RS
+.nf
+tr \-cs 'A\-Za\-z' '\\n' < document.txt | tr 'A\-Z' 'a\-z' | psort \-\-min 10
+.fi
+.RE
+.PP
+Show distribution of numeric response times, sorted by value:
+.PP
+.RS
+.nf
+awk '{print $NF}' timings.log | psort \-\-numeric
+.fi
+.RE
+.PP
+Output a CSV of all entries whose count is between 5 and 100, using the
+full total for percentages:
+.PP
+.RS
+.nf
+cat data.txt | psort \-c \-\-min 5 \-\-max 100 \-\-fullperc
+.fi
+.RE
+.SH EXIT STATUS
+.TP
+.B 0
+Success, or empty input (no output produced).
+.TP
+.B 1
+Invalid option combination (e.g.\&
+.B \-\-fullperc
+without
+.B \-\-min
+or
+.BR \-\-max ).
+.SH IMPLEMENTATIONS
+Four implementations are provided, all supporting identical options:
+.TP
+.B psort
+Original Perl implementation.
+.TP
+.B psort_c
+C implementation (fastest; uses an open-addressing hash table with FNV-1a
+hashing).
+.TP
+.B psort_go
+Go implementation.
+.TP
+.B psort.py
+Python 3 implementation.
+.SH SEE ALSO
+.BR sort (1),
+.BR uniq (1),
+.BR awk (1)
+.SH AUTHOR
+Mike Marion.
+Man page co-authored with Claude Sonnet 4.6.
