@@ -2,7 +2,7 @@ Source: psort
 Section: utils
 Priority: optional
 Maintainer: Mike Marion <mm-claudeai@miguelito.org>
-Build-Depends: debhelper-compat (= 13), gcc, golang-go
+Build-Depends: debhelper-compat (= 13), gcc, golang-go, texinfo
 Standards-Version: 4.6.2
 Homepage: https://forgejo.miguelito.org/miguelito/psort
 Rules-Requires-Root: no

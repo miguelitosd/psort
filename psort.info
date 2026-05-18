@@ -1,0 +1,600 @@
+This is psort.info, produced by makeinfo version 7.1 from psort.texi.
+
+This manual is for psort (version 1.0.0).
+
+   Copyright © 2026 Mike Marion.
+
+   Permission is hereby granted, free of charge, to any person obtaining
+a copy of this software and associated documentation files (the
+Software), to deal in the Software without restriction, including
+without limitation the rights to use, copy, modify, merge, publish,
+distribute, sublicense, and/or sell copies of the Software, and to
+permit persons to whom the Software is furnished to do so, subject to
+the following conditions: The above copyright notice and this permission
+notice shall be included in all copies or substantial portions of the
+Software.
+INFO-DIR-SECTION Text tools
+START-INFO-DIR-ENTRY
+* psort: (psort).        Count input lines, sort by frequency.
+END-INFO-DIR-ENTRY
+
+
+File: psort.info,  Node: Top,  Next: Overview,  Up: (dir)
+
+psort
+*****
+
+‘psort’ counts input lines, sorts them by frequency, and displays the
+results with percentages.
+
+   This manual is for psort (version 1.0.0).
+
+   Copyright © 2026 Mike Marion.
+
+   Permission is hereby granted, free of charge, to any person obtaining
+a copy of this software and associated documentation files (the
+Software), to deal in the Software without restriction, including
+without limitation the rights to use, copy, modify, merge, publish,
+distribute, sublicense, and/or sell copies of the Software, and to
+permit persons to whom the Software is furnished to do so, subject to
+the following conditions: The above copyright notice and this permission
+notice shall be included in all copies or substantial portions of the
+Software.
+
+* Menu:
+
+* Overview::             What psort does
+* Options::              Command-line options reference
+* Output Format::        How output is structured
+* Examples::             Common usage patterns
+* Implementations::      The four language ports
+* Benchmarks::           Performance comparisons and methodology
+* Installation::         RPM, Debian, and manual installation
+* Concept Index::        Index of concepts
+
+
+File: psort.info,  Node: Overview,  Next: Options,  Prev: Top,  Up: Top
+
+1 Overview
+**********
+
+‘psort’ reads lines from standard input or one or more files, counts the
+occurrences of each unique line, and prints them sorted by frequency
+from least to most common.  Each output line shows the percentage of the
+total, the raw count, and the value.  A ‘Total:’ line is printed at the
+end.
+
+   It is the equivalent of:
+
+     sort | uniq -c | sort -n
+
+   but with cleaner formatting, aligned columns, percentages, and
+additional filtering options.
+
+     $ find Movies -type f -name '*.mp4' -o -name '*.m4v' \
+         | awk -F. '{print $NF}' | psort
+       2.8649%    42 mp4
+      97.1351%  1424 m4v
+        Total:  1466
+
+   Four implementations are provided -- Perl, C, Go, and Python 3 -- all
+supporting identical command-line options.  When installed via the RPM
+or Debian package, ‘/usr/bin/psort’ is a symlink managed by
+‘update-alternatives’ pointing to ‘psort_c’ by default.
+
+
+File: psort.info,  Node: Options,  Next: Output Format,  Prev: Overview,  Up: Top
+
+2 Options
+*********
+
+‘-c’
+‘--csv’
+     Output in CSV format (‘percentage%,count,value’) instead of the
+     human-readable aligned columns.
+
+‘-a’
+‘--csvall’
+     Like ‘--csv’, and also replace all whitespace within each value
+     with commas.
+
+‘-d N’
+‘--decimal=N’
+     Number of decimal places for percentages.  Default is ‘4’.
+
+‘--numeric’
+     Sort by the numeric value of the input lines rather than by
+     occurrence count.  Useful when input lines are numbers and you want
+     them in numeric order.
+
+‘-m N’
+‘--min=N’
+     Exclude entries whose count is below N.  Excluded counts are
+     accumulated into an ‘[excluded]’ summary line unless ‘--ignore’ is
+     given.  By default, totals and percentages are recomputed from the
+     remaining entries; see ‘--fullperc’ to override.
+
+‘-x N’
+‘--max=N’
+     Exclude entries whose count is above N.  Operates identically to
+     ‘--min’.
+
+‘-f’
+‘--fullperc’
+     When used with ‘--min’ or ‘--max’, compute percentages from the
+     full original total rather than the filtered count.
+
+‘-i’
+‘--ignore’
+     When used with ‘--min’ or ‘--max’, suppress the ‘[excluded]’
+     summary line.
+
+‘-v’
+‘--verbose’
+     When used with ‘--min’ or ‘--max’, print to standard error the
+     number of keys and total count before and after filtering.
+
+‘-r’
+‘--reverse’
+     Reverse the sort order so the highest count (or highest numeric
+     value with ‘--numeric’) appears first.
+
+‘-h’
+‘--help’
+     Print a usage summary and exit.
+
+
+File: psort.info,  Node: Output Format,  Next: Examples,  Prev: Options,  Up: Top
+
+3 Output Format
+***************
+
+The default (human-readable) output format per entry is:
+
+     PERCENTAGE%  COUNT VALUE
+
+   Percentages below 10 are padded with a leading space so decimal
+points align.  The count column is right-justified to the width of the
+largest count.
+
+   CSV output (‘-c’ or ‘-a’):
+
+     PERCENTAGE%,COUNT,VALUE
+
+   The final line in either format is:
+
+       Total:  N
+
+   When ‘--min’ or ‘--max’ filtering is active and excluded entries
+exist, an additional ‘[excluded]’ line appears before the total (unless
+‘--ignore’ suppresses it).
+
+
+File: psort.info,  Node: Examples,  Next: Implementations,  Prev: Output Format,  Up: Top
+
+4 Examples
+**********
+
+Count file extensions under the current directory, least common first:
+
+     find . -type f | sed 's/.*\.//' | psort
+
+   Show the five most common HTTP status codes (highest count first):
+
+     awk '{print $9}' access.log | psort -r | head -5
+
+   Word frequencies, keeping only words appearing at least 10 times,
+percentages computed from the full document total:
+
+     tr -cs 'A-Za-z' '\n' < doc.txt | tr 'A-Z' 'a-z' | psort --min 10 --fullperc
+
+   Numeric distribution of response times, sorted by value:
+
+     awk '{print $NF}' timings.log | psort --numeric
+
+   CSV of entries with counts between 5 and 100, full-total percentages:
+
+     cat data.txt | psort -c --min 5 --max 100 --fullperc
+
+
+File: psort.info,  Node: Implementations,  Next: Benchmarks,  Prev: Examples,  Up: Top
+
+5 Implementations
+*****************
+
+Four implementations are provided, all supporting identical command-line
+options:
+
+‘psort.pl’
+     The original implementation, written in Perl.  Uses a hash
+     (‘%data’) for counting and Perl's built-in sort for ordering.
+     Requires Perl and the ‘Getopt::Long’ module (included in standard
+     Perl distributions).
+
+‘psort_c’
+     C implementation.  Uses an open-addressing hash table with FNV-1a
+     hashing and dynamic resizing at a 65% load factor.  No external
+     dependencies; links only against libc.
+
+‘psort_go’
+     Go implementation.  Uses Go's built-in ‘map[string]int’ for
+     counting and ‘sort.Slice’ for ordering.  Compiled to a
+     self-contained static binary with no runtime dependencies.
+
+‘psort.py’
+     Python 3 implementation.  Uses a ‘dict’ for counting and Python's
+     built-in ‘sorted()’ for ordering.  Requires Python 3 (standard
+     library only; no third-party packages).
+
+   When installed from a package, ‘/usr/bin/psort’ is a symlink managed
+by ‘update-alternatives’.  Installed priorities:
+
+Binary                 Priority               Notes
+----------------------------------------------------------------------------
+‘psort_c’              40                     Default
+‘psort_go’             30
+‘psort.py’             20
+‘psort.pl’             10
+
+   To switch implementations:
+
+     update-alternatives --config psort
+
+
+File: psort.info,  Node: Benchmarks,  Next: Installation,  Prev: Implementations,  Up: Top
+
+6 Benchmarks
+************
+
+* Menu:
+
+* Methodology::          How the tests were run
+* Results::              Timing and memory statistics
+* Scaling::              How each port scales with input size
+* The C Hash Bug::       History of the O(n^2) fix in psort_c
+* Observations::         Analysis of the results
+
+
+File: psort.info,  Node: Methodology,  Next: Results,  Up: Benchmarks
+
+6.1 Methodology
+===============
+
+Each port was run *100 times* against a large input file containing
+2,289,195 lines of file path data.  Program output was discarded; only
+timing metrics were captured using:
+
+     /usr/bin/time -f "real=%e user=%U sys=%S mem=%M" \
+         psort_c < /tmp/find.data > /dev/null
+
+   Metrics collected per run:
+
+REAL
+     Wall-clock elapsed time, in seconds.
+USER
+     User-space CPU time, in seconds.
+SYS
+     Kernel (system-call) CPU time, in seconds.
+MEM
+     Peak resident set size (‘%M’ from ‘time’), in kilobytes.
+
+   Statistics reported: minimum, maximum, mean, and population standard
+deviation (n = 100 runs per variant).
+
+
+File: psort.info,  Node: Results,  Next: Scaling,  Prev: Methodology,  Up: Benchmarks
+
+6.2 Results
+===========
+
+6.2.1 Real Elapsed Time (wall clock)
+------------------------------------
+
+Rank    Variant          Min        Max        Avg          Stddev
+-----------------------------------------------------------------------
+1       ‘psort_c’        0.490 s    0.590 s    0.519 s      0.018 s
+2       ‘psort_go’       0.920 s    1.040 s    0.949 s      0.020 s
+3       ‘psort.py’       1.010 s    1.160 s    1.055 s      0.026 s
+4       ‘psort.pl’       1.360 s    1.520 s    1.402 s      0.029 s
+
+6.2.2 User CPU Time
+-------------------
+
+Rank    Variant          Min        Max        Avg          Stddev
+-----------------------------------------------------------------------
+1       ‘psort_c’        0.430 s    0.520 s    0.460 s      0.019 s
+2       ‘psort_go’       0.770 s    0.870 s    0.811 s      0.019 s
+3       ‘psort.py’       0.950 s    1.100 s    0.994 s      0.027 s
+4       ‘psort.pl’       1.280 s    1.430 s    1.323 s      0.029 s
+
+6.2.3 System (Kernel) CPU Time
+------------------------------
+
+Go's concurrent garbage collector generates notably more kernel activity
+(0.182 s average) than the other ports.  C and Python are essentially
+tied at roughly 0.055 s; Perl sits between them at 0.073 s.
+
+Variant          Min        Max        Avg          Stddev
+---------------------------------------------------------------
+‘psort_c’        0.040 s    0.070 s    0.054 s      0.006 s
+‘psort.py’       0.040 s    0.080 s    0.056 s      0.007 s
+‘psort.pl’       0.060 s    0.090 s    0.073 s      0.009 s
+‘psort_go’       0.150 s    0.220 s    0.182 s      0.013 s
+
+6.2.4 Peak Resident Memory
+--------------------------
+
+Values from ‘/usr/bin/time’ ‘%M’, reported in kilobytes; shown here in
+megabytes.
+
+Rank    Variant          Min          Max          Avg          Stddev
+------------------------------------------------------------------------
+1       ‘psort_c’        67.02 MB     67.60 MB     67.33 MB     0.11
+                                                                MB
+2       ‘psort.py’       84.09 MB     84.84 MB     84.55 MB     0.16
+                                                                MB
+3       ‘psort_go’       99.75 MB     100.88 MB    100.27 MB    0.29
+                                                                MB
+4       ‘psort.pl’       134.73 MB    135.64 MB    135.29 MB    0.18
+                                                                MB
+
+6.2.5 Summary
+-------------
+
+Variant          Avg real      Avg user      Avg sys       Avg mem
+-------------------------------------------------------------------------
+‘psort_c’        0.519 s       0.460 s       0.054 s       67.3 MB
+‘psort_go’       0.949 s       0.811 s       0.182 s       100.3 MB
+‘psort.py’       1.055 s       0.994 s       0.056 s       84.6 MB
+‘psort.pl’       1.402 s       1.323 s       0.073 s       135.3 MB
+
+
+File: psort.info,  Node: Scaling,  Next: The C Hash Bug,  Prev: Results,  Up: Benchmarks
+
+6.3 Scaling Behavior
+====================
+
+A scaling benchmark was run at input sizes from 100,000 to 650,000 lines
+in 50,000-line increments, with 3 timed runs per variant per size point.
+The results were plotted as time-vs-size and memory-vs-size charts
+(‘scaling_real.png’, ‘scaling_user.png’, ‘scaling_sys.png’,
+‘scaling_mem.png’ in the source tree).
+
+   All four ports show broadly linear real-time growth once the correct
+hash-table implementation is in place.  ‘psort_c’ is fastest at every
+size point; ‘psort_go’ is second; ‘psort.py’ and ‘psort.pl’ follow, with
+Perl's larger per-key hash overhead becoming more apparent at higher
+line counts.
+
+   Memory consumption scales proportionally to the number of _unique_
+lines encountered.  On a dataset of file paths (high uniqueness) it
+grows roughly linearly with input size across all ports.
+
+   Before the hash table fix in ‘psort_c’ (*note The C Hash Bug::), the
+scaling curve was visibly quadratic and the 650,000-line run timed out
+entirely.
+
+
+File: psort.info,  Node: The C Hash Bug,  Next: Observations,  Prev: Scaling,  Up: Benchmarks
+
+6.4 The O(n^2) Bug in psort_c
+=============================
+
+The original C port used a flat array for counting: every new input line
+triggered a linear scan through all previously-seen keys to find a
+match.  This is O(n) per line and O(n^2) overall.
+
+6.4.1 Symptoms
+--------------
+
+On a 107,000-line benchmark the quadratic cost was small enough (under
+0.2 s) to go unnoticed.  On the 100,000-650,000-line scaling benchmark,
+the growth curve was unmistakably quadratic and the 650,000-line run
+timed out.  On the full 2,289,195-line input the process ran for over
+four minutes before being killed.
+
+6.4.2 Fix
+---------
+
+The fix replaced the linear scan with an open-addressing hash table:
+
+*Hash function*
+     FNV-1a (Fowler-Noll-Vo 1a) -- a simple, non-cryptographic hash
+     function with good distribution for short string keys.
+
+*Collision resolution*
+     Linear probing.  Slots are probed sequentially until an empty slot
+     or matching key is found.
+
+*Load factor*
+     The table is doubled when 65% of slots are occupied, keeping probe
+     sequences short and lookup O(1) amortized.
+
+*Key storage*
+     Keys are heap-allocated via ‘strdup’; the hash table stores
+     pointers and avoids copying strings on every lookup.
+
+   After the fix, ‘psort_c’ went from last place (unusable at scale) to
+first place on every metric: wall time, user CPU, sys CPU, and peak
+memory.
+
+
+File: psort.info,  Node: Observations,  Prev: The C Hash Bug,  Up: Benchmarks
+
+6.5 Observations
+================
+
+C is fastest on every metric
+----------------------------
+
+With the hash table corrected, ‘psort_c’ leads on real time (0.519 s
+average), user CPU (0.460 s), sys CPU (0.054 s), and peak memory (67.33
+MB). No interpreter, no garbage collector, no runtime overhead -- just a
+tight read loop and one hash lookup per line.
+
+Go is a close second, but GC shows in sys time
+----------------------------------------------
+
+Go's 0.949 s average real time is 83% slower than C but well ahead of
+the interpreted ports.  The standout cost is sys CPU (0.182 s average --
+three times more than C or Python), a direct consequence of Go's
+concurrent garbage collector making write-barrier and heap-scan passes
+that require kernel interaction.  For a workload this memory-intensive
+(2.3 million unique strings), GC pressure is the dominant cost above raw
+computation.
+
+Python beats Perl at scale and nearly matches Go
+------------------------------------------------
+
+Python (1.055 s) is only 11% behind Go and 25% faster than Perl (1.402
+s).  CPython's dict scales efficiently to large key counts, and its sys
+CPU (0.056 s) is essentially identical to C -- no GC churn.  Python also
+uses the second-least memory (84.55 MB) -- less than Go's runtime
+overhead (100.27 MB).
+
+Perl holds last place at large scale
+------------------------------------
+
+Perl was competitive on the original 107,000-line benchmark but does not
+scale as well to 2.3 million lines.  At 1.402 s it is 2.7x slower than C
+and 33% slower than Python.  Perl's hash carries more per-key overhead
+than Python's dict (135 MB vs.  85 MB), which compounds at large unique
+key counts.
+
+
+File: psort.info,  Node: Installation,  Next: Concept Index,  Prev: Benchmarks,  Up: Top
+
+7 Installation
+**************
+
+* Menu:
+
+* RPM Installation::     Fedora, RHEL, CentOS
+* Debian Installation::  Debian, Ubuntu
+* Manual Installation::  Copy files by hand
+
+
+File: psort.info,  Node: RPM Installation,  Next: Debian Installation,  Up: Installation
+
+7.1 RPM (Fedora / RHEL / CentOS)
+================================
+
+     # Create a source tarball from the repository
+     git archive --prefix=psort-1.0.0/ HEAD \
+         | gzip > ~/rpmbuild/SOURCES/psort-1.0.0.tar.gz
+
+     # Build the RPM
+     rpmbuild -ba psort.spec
+
+     # Install
+     rpm -i ~/rpmbuild/RPMS/$(uname -m)/psort-1.0.0-1.*.rpm
+
+   After installation ‘psort’ points to ‘psort_c’ by default.  To
+switch:
+
+     update-alternatives --config psort
+
+
+File: psort.info,  Node: Debian Installation,  Next: Manual Installation,  Prev: RPM Installation,  Up: Installation
+
+7.2 Debian / Ubuntu
+===================
+
+     dpkg-buildpackage -us -uc -b
+     sudo dpkg -i ../psort_1.0.0-1_$(dpkg --print-architecture).deb
+
+
+File: psort.info,  Node: Manual Installation,  Prev: Debian Installation,  Up: Installation
+
+7.3 Manual Installation
+=======================
+
+     sudo install -m755 psort_c psort_go psort.py psort.pl /usr/local/bin/
+     sudo install -m644 psort.1   /usr/local/share/man/man1/
+     sudo install -m644 psort.info /usr/local/share/info/
+     sudo install-info /usr/local/share/info/psort.info \
+         /usr/local/share/info/dir
+
+
+File: psort.info,  Node: Concept Index,  Prev: Installation,  Up: Top
+
+Concept Index
+*************
+
+ [index ]
+* Menu:
+
+* benchmark methodology:                 Methodology.          (line  6)
+* benchmark results:                     Results.              (line  5)
+* benchmarks:                            Benchmarks.           (line  6)
+* C implementation:                      Implementations.      (line 16)
+* command-line options:                  Options.              (line  6)
+* CSV output:                            Options.              (line  8)
+* CSV output, with whitespace replacement: Options.            (line 13)
+* Debian package:                        Debian Installation.  (line  6)
+* decimal places:                        Options.              (line 18)
+* description:                           Overview.             (line  6)
+* dpkg-buildpackage:                     Debian Installation.  (line  6)
+* examples:                              Examples.             (line  6)
+* FNV-1a:                                The C Hash Bug.       (line  6)
+* full percentage:                       Options.              (line 39)
+* garbage collector, Go:                 Results.              (line 29)
+* Go implementation:                     Implementations.      (line 21)
+* hash table:                            The C Hash Bug.       (line  6)
+* hash table, open-addressing:           Implementations.      (line 16)
+* implementations:                       Implementations.      (line  6)
+* input size:                            Scaling.              (line  6)
+* installation:                          Installation.         (line  6)
+* manual installation:                   Manual Installation.  (line  6)
+* maximum count filter:                  Options.              (line 34)
+* memory usage:                          Results.              (line 43)
+* minimum count filter:                  Options.              (line 27)
+* numeric sort:                          Options.              (line 21)
+* O(n^2) bug:                            The C Hash Bug.       (line  6)
+* observations:                          Observations.         (line  6)
+* options:                               Options.              (line  6)
+* output format:                         Output Format.        (line  6)
+* overview:                              Overview.             (line  6)
+* performance:                           Benchmarks.           (line  6)
+* Perl implementation:                   Implementations.      (line 10)
+* ports:                                 Implementations.      (line  6)
+* Python implementation:                 Implementations.      (line 26)
+* reverse sort:                          Options.              (line 54)
+* RPM:                                   RPM Installation.     (line  6)
+* rpmbuild:                              RPM Installation.     (line  6)
+* scaling:                               Scaling.              (line  6)
+* suppressing excluded line:             Options.              (line 44)
+* system CPU time:                       Results.              (line 29)
+* update-alternatives:                   Overview.             (line 25)
+* update-alternatives <1>:               Implementations.      (line 30)
+* user CPU time:                         Results.              (line 19)
+* verbose output:                        Options.              (line 49)
+* wall-clock time:                       Results.              (line  9)
+
+
+
+Tag Table:
+Node: Top842
+Node: Overview2083
+Node: Options3085
+Node: Output Format4788
+Node: Examples5460
+Node: Implementations6271
+Node: Benchmarks7833
+Node: Methodology8239
+Node: Results8983
+Node: Scaling12024
+Node: The C Hash Bug13156
+Node: Observations14646
+Node: Installation16399
+Node: RPM Installation16662
+Node: Debian Installation17226
+Node: Manual Installation17490
+Node: Concept Index17922
+
+End Tag Table
+
+
+Local Variables:
+coding: utf-8
+End:

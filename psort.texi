@@ -1,0 +1,571 @@
+\input texinfo   @c -*-texinfo-*-
+@c %**start of header
+@setfilename psort.info
+@settitle psort
+@documentencoding UTF-8
+@c %**end of header
+
+@copying
+This manual is for psort (version 1.0.0).
+
+Copyright @copyright{} 2026 Mike Marion.
+
+Permission is hereby granted, free of charge, to any person obtaining
+a copy of this software and associated documentation files (the
+Software), to deal in the Software without restriction, including
+without limitation the rights to use, copy, modify, merge, publish,
+distribute, sublicense, and/or sell copies of the Software, and to
+permit persons to whom the Software is furnished to do so, subject to
+the following conditions: The above copyright notice and this
+permission notice shall be included in all copies or substantial
+portions of the Software.
+@end copying
+
+@dircategory Text tools
+@direntry
+* psort: (psort).        Count input lines, sort by frequency.
+@end direntry
+
+@titlepage
+@title psort
+@subtitle Count input lines, sort by frequency, display with percentages
+@subtitle Version 1.0.0
+@author Mike Marion
+@page
+@vskip 0pt plus 1filll
+@insertcopying
+@end titlepage
+
+@contents
+
+@ifnottex
+@node Top
+@top psort
+
+@command{psort} counts input lines, sorts them by frequency, and
+displays the results with percentages.
+
+@insertcopying
+@end ifnottex
+
+@menu
+* Overview::             What psort does
+* Options::              Command-line options reference
+* Output Format::        How output is structured
+* Examples::             Common usage patterns
+* Implementations::      The four language ports
+* Benchmarks::           Performance comparisons and methodology
+* Installation::         RPM, Debian, and manual installation
+* Concept Index::        Index of concepts
+@end menu
+
+@c ------------------------------------------------------------------
+@node Overview
+@chapter Overview
+@cindex overview
+@cindex description
+
+@command{psort} reads lines from standard input or one or more files,
+counts the occurrences of each unique line, and prints them sorted by
+frequency from least to most common.  Each output line shows the
+percentage of the total, the raw count, and the value.  A
+@samp{Total:} line is printed at the end.
+
+It is the equivalent of:
+
+@example
+sort | uniq -c | sort -n
+@end example
+
+but with cleaner formatting, aligned columns, percentages, and
+additional filtering options.
+
+@example
+$ find Movies -type f -name '*.mp4' -o -name '*.m4v' \
+    | awk -F. '@{print $NF@}' | psort
+  2.8649%    42 mp4
+ 97.1351%  1424 m4v
+   Total:  1466
+@end example
+
+@cindex update-alternatives
+Four implementations are provided --- Perl, C, Go, and Python 3 --- all
+supporting identical command-line options.  When installed via the RPM
+or Debian package, @file{/usr/bin/psort} is a symlink managed by
+@command{update-alternatives} pointing to @command{psort_c} by default.
+
+@c ------------------------------------------------------------------
+@node Options
+@chapter Options
+@cindex options
+@cindex command-line options
+
+@table @option
+@item -c
+@itemx --csv
+@cindex CSV output
+Output in CSV format (@samp{percentage%,count,value}) instead of the
+human-readable aligned columns.
+
+@item -a
+@itemx --csvall
+@cindex CSV output, with whitespace replacement
+Like @option{--csv}, and also replace all whitespace within each value
+with commas.
+
+@item -d @var{N}
+@itemx --decimal=@var{N}
+@cindex decimal places
+Number of decimal places for percentages.  Default is @samp{4}.
+
+@item --numeric
+@cindex numeric sort
+Sort by the numeric value of the input lines rather than by occurrence
+count.  Useful when input lines are numbers and you want them in numeric
+order.
+
+@item -m @var{N}
+@itemx --min=@var{N}
+@cindex minimum count filter
+Exclude entries whose count is below @var{N}.  Excluded counts are
+accumulated into an @samp{[excluded]} summary line unless
+@option{--ignore} is given.  By default, totals and percentages are
+recomputed from the remaining entries; see @option{--fullperc} to
+override.
+
+@item -x @var{N}
+@itemx --max=@var{N}
+@cindex maximum count filter
+Exclude entries whose count is above @var{N}.  Operates identically to
+@option{--min}.
+
+@item -f
+@itemx --fullperc
+@cindex full percentage
+When used with @option{--min} or @option{--max}, compute percentages
+from the full original total rather than the filtered count.
+
+@item -i
+@itemx --ignore
+@cindex suppressing excluded line
+When used with @option{--min} or @option{--max}, suppress the
+@samp{[excluded]} summary line.
+
+@item -v
+@itemx --verbose
+@cindex verbose output
+When used with @option{--min} or @option{--max}, print to standard
+error the number of keys and total count before and after filtering.
+
+@item -r
+@itemx --reverse
+@cindex reverse sort
+Reverse the sort order so the highest count (or highest numeric value
+with @option{--numeric}) appears first.
+
+@item -h
+@itemx --help
+Print a usage summary and exit.
+@end table
+
+@c ------------------------------------------------------------------
+@node Output Format
+@chapter Output Format
+@cindex output format
+
+The default (human-readable) output format per entry is:
+
+@example
+@var{percentage}%  @var{count} @var{value}
+@end example
+
+Percentages below 10 are padded with a leading space so decimal points
+align.  The count column is right-justified to the width of the largest
+count.
+
+CSV output (@option{-c} or @option{-a}):
+
+@example
+@var{percentage}%,@var{count},@var{value}
+@end example
+
+The final line in either format is:
+
+@example
+  Total:  @var{N}
+@end example
+
+When @option{--min} or @option{--max} filtering is active and excluded
+entries exist, an additional @samp{[excluded]} line appears before the
+total (unless @option{--ignore} suppresses it).
+
+@c ------------------------------------------------------------------
+@node Examples
+@chapter Examples
+@cindex examples
+
+Count file extensions under the current directory, least common first:
+
+@example
+find . -type f | sed 's/.*\.//' | psort
+@end example
+
+Show the five most common HTTP status codes (highest count first):
+
+@example
+awk '@{print $9@}' access.log | psort -r | head -5
+@end example
+
+Word frequencies, keeping only words appearing at least 10 times,
+percentages computed from the full document total:
+
+@example
+tr -cs 'A-Za-z' '\n' < doc.txt | tr 'A-Z' 'a-z' | psort --min 10 --fullperc
+@end example
+
+Numeric distribution of response times, sorted by value:
+
+@example
+awk '@{print $NF@}' timings.log | psort --numeric
+@end example
+
+CSV of entries with counts between 5 and 100, full-total percentages:
+
+@example
+cat data.txt | psort -c --min 5 --max 100 --fullperc
+@end example
+
+@c ------------------------------------------------------------------
+@node Implementations
+@chapter Implementations
+@cindex implementations
+@cindex ports
+
+Four implementations are provided, all supporting identical
+command-line options:
+
+@table @command
+@item psort.pl
+@cindex Perl implementation
+The original implementation, written in Perl.  Uses a hash
+(@code{%data}) for counting and Perl's built-in sort for ordering.
+Requires Perl and the @samp{Getopt::Long} module (included in standard
+Perl distributions).
+
+@item psort_c
+@cindex C implementation
+@cindex hash table, open-addressing
+C implementation.  Uses an open-addressing hash table with FNV-1a
+hashing and dynamic resizing at a 65% load factor.  No external
+dependencies; links only against libc.
+
+@item psort_go
+@cindex Go implementation
+Go implementation.  Uses Go's built-in @code{map[string]int} for
+counting and @code{sort.Slice} for ordering.  Compiled to a
+self-contained static binary with no runtime dependencies.
+
+@item psort.py
+@cindex Python implementation
+Python 3 implementation.  Uses a @code{dict} for counting and
+Python's built-in @code{sorted()} for ordering.  Requires Python 3
+(standard library only; no third-party packages).
+@end table
+
+@cindex update-alternatives
+When installed from a package, @file{/usr/bin/psort} is a symlink
+managed by @command{update-alternatives}.  Installed priorities:
+
+@multitable @columnfractions .30 .30 .40
+@headitem Binary @tab Priority @tab Notes
+@item @command{psort_c}  @tab 40 @tab Default
+@item @command{psort_go} @tab 30 @tab
+@item @command{psort.py} @tab 20 @tab
+@item @command{psort.pl} @tab 10 @tab
+@end multitable
+
+To switch implementations:
+
+@example
+update-alternatives --config psort
+@end example
+
+@c ------------------------------------------------------------------
+@node Benchmarks
+@chapter Benchmarks
+@cindex benchmarks
+@cindex performance
+
+@menu
+* Methodology::          How the tests were run
+* Results::              Timing and memory statistics
+* Scaling::              How each port scales with input size
+* The C Hash Bug::       History of the O(n^2) fix in psort_c
+* Observations::         Analysis of the results
+@end menu
+
+@node Methodology
+@section Methodology
+@cindex benchmark methodology
+
+Each port was run @strong{100 times} against a large input file
+containing 2,289,195 lines of file path data.  Program output was
+discarded; only timing metrics were captured using:
+
+@example
+/usr/bin/time -f "real=%e user=%U sys=%S mem=%M" \
+    psort_c < /tmp/find.data > /dev/null
+@end example
+
+Metrics collected per run:
+
+@table @var
+@item real
+Wall-clock elapsed time, in seconds.
+@item user
+User-space CPU time, in seconds.
+@item sys
+Kernel (system-call) CPU time, in seconds.
+@item mem
+Peak resident set size (@samp{%M} from @command{time}), in kilobytes.
+@end table
+
+Statistics reported: minimum, maximum, mean, and population standard
+deviation (n@tie{}=@tie{}100 runs per variant).
+
+@node Results
+@section Results
+@cindex benchmark results
+
+@subsection Real Elapsed Time (wall clock)
+@cindex wall-clock time
+
+@multitable @columnfractions .10 .22 .14 .14 .16 .14
+@headitem Rank @tab Variant @tab Min @tab Max @tab Avg @tab Stddev
+@item 1 @tab @command{psort_c}  @tab 0.490 s @tab 0.590 s @tab 0.519 s @tab 0.018 s
+@item 2 @tab @command{psort_go} @tab 0.920 s @tab 1.040 s @tab 0.949 s @tab 0.020 s
+@item 3 @tab @command{psort.py} @tab 1.010 s @tab 1.160 s @tab 1.055 s @tab 0.026 s
+@item 4 @tab @command{psort.pl} @tab 1.360 s @tab 1.520 s @tab 1.402 s @tab 0.029 s
+@end multitable
+
+@subsection User CPU Time
+@cindex user CPU time
+
+@multitable @columnfractions .10 .22 .14 .14 .16 .14
+@headitem Rank @tab Variant @tab Min @tab Max @tab Avg @tab Stddev
+@item 1 @tab @command{psort_c}  @tab 0.430 s @tab 0.520 s @tab 0.460 s @tab 0.019 s
+@item 2 @tab @command{psort_go} @tab 0.770 s @tab 0.870 s @tab 0.811 s @tab 0.019 s
+@item 3 @tab @command{psort.py} @tab 0.950 s @tab 1.100 s @tab 0.994 s @tab 0.027 s
+@item 4 @tab @command{psort.pl} @tab 1.280 s @tab 1.430 s @tab 1.323 s @tab 0.029 s
+@end multitable
+
+@subsection System (Kernel) CPU Time
+@cindex system CPU time
+@cindex garbage collector, Go
+
+Go's concurrent garbage collector generates notably more kernel activity
+(0.182 s average) than the other ports.  C and Python are essentially
+tied at roughly 0.055 s; Perl sits between them at 0.073 s.
+
+@multitable @columnfractions .22 .14 .14 .16 .14
+@headitem Variant @tab Min @tab Max @tab Avg @tab Stddev
+@item @command{psort_c}  @tab 0.040 s @tab 0.070 s @tab 0.054 s @tab 0.006 s
+@item @command{psort.py} @tab 0.040 s @tab 0.080 s @tab 0.056 s @tab 0.007 s
+@item @command{psort.pl} @tab 0.060 s @tab 0.090 s @tab 0.073 s @tab 0.009 s
+@item @command{psort_go} @tab 0.150 s @tab 0.220 s @tab 0.182 s @tab 0.013 s
+@end multitable
+
+@subsection Peak Resident Memory
+@cindex memory usage
+
+Values from @command{/usr/bin/time} @samp{%M}, reported in kilobytes;
+shown here in megabytes.
+
+@multitable @columnfractions .10 .22 .16 .16 .16 .10
+@headitem Rank @tab Variant @tab Min @tab Max @tab Avg @tab Stddev
+@item 1 @tab @command{psort_c}  @tab 67.02 MB @tab 67.60 MB @tab 67.33 MB @tab 0.11 MB
+@item 2 @tab @command{psort.py} @tab 84.09 MB @tab 84.84 MB @tab 84.55 MB @tab 0.16 MB
+@item 3 @tab @command{psort_go} @tab 99.75 MB @tab 100.88 MB @tab 100.27 MB @tab 0.29 MB
+@item 4 @tab @command{psort.pl} @tab 134.73 MB @tab 135.64 MB @tab 135.29 MB @tab 0.18 MB
+@end multitable
+
+@subsection Summary
+
+@multitable @columnfractions .22 .18 .18 .18 .18
+@headitem Variant @tab Avg real @tab Avg user @tab Avg sys @tab Avg mem
+@item @command{psort_c}  @tab 0.519 s @tab 0.460 s @tab 0.054 s @tab  67.3 MB
+@item @command{psort_go} @tab 0.949 s @tab 0.811 s @tab 0.182 s @tab 100.3 MB
+@item @command{psort.py} @tab 1.055 s @tab 0.994 s @tab 0.056 s @tab  84.6 MB
+@item @command{psort.pl} @tab 1.402 s @tab 1.323 s @tab 0.073 s @tab 135.3 MB
+@end multitable
+
+@node Scaling
+@section Scaling Behavior
+@cindex scaling
+@cindex input size
+
+A scaling benchmark was run at input sizes from 100,000 to 650,000
+lines in 50,000-line increments, with 3 timed runs per variant per size
+point.  The results were plotted as time-vs-size and memory-vs-size
+charts (@file{scaling_real.png}, @file{scaling_user.png},
+@file{scaling_sys.png}, @file{scaling_mem.png} in the source tree).
+
+All four ports show broadly linear real-time growth once the correct
+hash-table implementation is in place.  @command{psort_c} is fastest at
+every size point; @command{psort_go} is second; @command{psort.py} and
+@command{psort.pl} follow, with Perl's larger per-key hash overhead
+becoming more apparent at higher line counts.
+
+Memory consumption scales proportionally to the number of @emph{unique}
+lines encountered.  On a dataset of file paths (high uniqueness) it
+grows roughly linearly with input size across all ports.
+
+Before the hash table fix in @command{psort_c} (@pxref{The C Hash
+Bug}), the scaling curve was visibly quadratic and the 650,000-line run
+timed out entirely.
+
+@node The C Hash Bug
+@section The O(n^2) Bug in psort_c
+@cindex O(n^2) bug
+@cindex hash table
+@cindex FNV-1a
+
+The original C port used a flat array for counting: every new input
+line triggered a linear scan through all previously-seen keys to find a
+match.  This is O(n) per line and O(n^2) overall.
+
+@subsection Symptoms
+
+On a 107,000-line benchmark the quadratic cost was small enough (under
+0.2 s) to go unnoticed.  On the 100,000--650,000-line scaling
+benchmark, the growth curve was unmistakably quadratic and the 650,000-line
+run timed out.  On the full 2,289,195-line input the process ran for
+over four minutes before being killed.
+
+@subsection Fix
+
+The fix replaced the linear scan with an open-addressing hash table:
+
+@table @strong
+@item Hash function
+FNV-1a (Fowler-Noll-Vo 1a) --- a simple, non-cryptographic hash
+function with good distribution for short string keys.
+
+@item Collision resolution
+Linear probing.  Slots are probed sequentially until an empty slot or
+matching key is found.
+
+@item Load factor
+The table is doubled when 65% of slots are occupied, keeping probe
+sequences short and lookup O(1) amortized.
+
+@item Key storage
+Keys are heap-allocated via @code{strdup}; the hash table stores
+pointers and avoids copying strings on every lookup.
+@end table
+
+After the fix, @command{psort_c} went from last place (unusable at
+scale) to first place on every metric: wall time, user CPU, sys CPU,
+and peak memory.
+
+@node Observations
+@section Observations
+@cindex observations
+
+@subheading C is fastest on every metric
+
+With the hash table corrected, @command{psort_c} leads on real time
+(0.519 s average), user CPU (0.460 s), sys CPU (0.054 s), and peak
+memory (67.33 MB).  No interpreter, no garbage collector, no runtime
+overhead --- just a tight read loop and one hash lookup per line.
+
+@subheading Go is a close second, but GC shows in sys time
+
+Go's 0.949 s average real time is 83% slower than C but well ahead of
+the interpreted ports.  The standout cost is sys CPU (0.182 s average
+--- three times more than C or Python), a direct consequence of Go's
+concurrent garbage collector making write-barrier and heap-scan passes
+that require kernel interaction.  For a workload this memory-intensive
+(2.3 million unique strings), GC pressure is the dominant cost above
+raw computation.
+
+@subheading Python beats Perl at scale and nearly matches Go
+
+Python (1.055 s) is only 11% behind Go and 25% faster than Perl
+(1.402 s).  CPython's dict scales efficiently to large key counts, and
+its sys CPU (0.056 s) is essentially identical to C --- no GC churn.
+Python also uses the second-least memory (84.55 MB) --- less than Go's
+runtime overhead (100.27 MB).
+
+@subheading Perl holds last place at large scale
+
+Perl was competitive on the original 107,000-line benchmark but does
+not scale as well to 2.3 million lines.  At 1.402 s it is 2.7x slower
+than C and 33% slower than Python.  Perl's hash carries more per-key
+overhead than Python's dict (135 MB vs. 85 MB), which compounds at
+large unique key counts.
+
+@c ------------------------------------------------------------------
+@node Installation
+@chapter Installation
+@cindex installation
+
+@menu
+* RPM Installation::     Fedora, RHEL, CentOS
+* Debian Installation::  Debian, Ubuntu
+* Manual Installation::  Copy files by hand
+@end menu
+
+@node RPM Installation
+@section RPM (Fedora / RHEL / CentOS)
+@cindex RPM
+@cindex rpmbuild
+
+@example
+# Create a source tarball from the repository
+git archive --prefix=psort-1.0.0/ HEAD \
+    | gzip > ~/rpmbuild/SOURCES/psort-1.0.0.tar.gz
+
+# Build the RPM
+rpmbuild -ba psort.spec
+
+# Install
+rpm -i ~/rpmbuild/RPMS/$(uname -m)/psort-1.0.0-1.*.rpm
+@end example
+
+After installation @command{psort} points to @command{psort_c} by
+default.  To switch:
+
+@example
+update-alternatives --config psort
+@end example
+
+@node Debian Installation
+@section Debian / Ubuntu
+@cindex Debian package
+@cindex dpkg-buildpackage
+
+@example
+dpkg-buildpackage -us -uc -b
+sudo dpkg -i ../psort_1.0.0-1_$(dpkg --print-architecture).deb
+@end example
+
+@node Manual Installation
+@section Manual Installation
+@cindex manual installation
+
+@example
+sudo install -m755 psort_c psort_go psort.py psort.pl /usr/local/bin/
+sudo install -m644 psort.1   /usr/local/share/man/man1/
+sudo install -m644 psort.info /usr/local/share/info/
+sudo install-info /usr/local/share/info/psort.info \
+    /usr/local/share/info/dir
+@end example
+
+@c ------------------------------------------------------------------
+@node Concept Index
+@unnumbered Concept Index
+
+@printindex cp
+
+@bye

@@ -6,8 +6,9 @@ License:        MIT
 URL:            https://forgejo.miguelito.org/miguelito/psort
 Source0:        %{name}-%{version}.tar.gz
 
-BuildRequires:  gcc
-BuildRequires:  golang
+#BuildRequires:  gcc
+#BuildRequires:  golang
+BuildRequires:  texinfo
 Requires:       perl
 Requires:       python3
 Requires(post): %{_sbindir}/update-alternatives
@@ -37,6 +38,7 @@ switch implementations.
 %build
 %{__cc} %{optflags} -o psort_c psort.c
 go build -o psort_go psort.go
+makeinfo psort.texi
 
 %install
 install -Dm755 psort.pl   %{buildroot}%{_bindir}/psort.pl
@@ -44,15 +46,18 @@ install -Dm755 psort_c    %{buildroot}%{_bindir}/psort_c
 install -Dm755 psort_go   %{buildroot}%{_bindir}/psort_go
 install -Dm755 psort.py   %{buildroot}%{_bindir}/psort.py
 install -Dm644 psort.1    %{buildroot}%{_mandir}/man1/psort.1
+install -Dm644 psort.info %{buildroot}%{_infodir}/psort.info
 
 %post
 update-alternatives --install %{_bindir}/psort psort %{_bindir}/psort_c  40
 update-alternatives --install %{_bindir}/psort psort %{_bindir}/psort_go 30
 update-alternatives --install %{_bindir}/psort psort %{_bindir}/psort.py 20
 update-alternatives --install %{_bindir}/psort psort %{_bindir}/psort.pl 10
+install-info %{_infodir}/psort.info %{_infodir}/dir || :
 
 %preun
 if [ $1 -eq 0 ]; then
+    install-info --delete %{_infodir}/psort.info %{_infodir}/dir || :
     update-alternatives --remove psort %{_bindir}/psort_c  || :
     update-alternatives --remove psort %{_bindir}/psort_go || :
     update-alternatives --remove psort %{_bindir}/psort.py || :
@@ -65,6 +70,7 @@ fi
 %{_bindir}/psort.py
 %{_bindir}/psort.pl
 %{_mandir}/man1/psort.1*
+%{_infodir}/psort.info*
 %ghost %{_bindir}/psort
 
 %changelog
