@@ -332,7 +332,12 @@ int main(int argc, char *argv[])
 
     int bar_inner = 0;
     if (opt_histogram && !opt_csv && !opt_csvall) {
-        bar_inner = term_width() - decimal - len - 10;
+        int max_key = 0;
+        for (int j = 0; j < entry_count; j++) {
+            int kl = (int)strlen(entries[j].key);
+            if (kl > max_key) max_key = kl;
+        }
+        bar_inner = term_width() - decimal - len - max_key - 11;
         if (bar_inner < 10) bar_inner = 10;
     }
 

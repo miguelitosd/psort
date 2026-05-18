@@ -71,7 +71,11 @@ my $len = length($tot);
 
 my $bar_inner = 0;
 if ($histogram && !$csv && !$csvall) {
-    $bar_inner = term_width() - $decimal - $len - 10;
+    my $max_key = 0;
+    foreach my $k (keys %data) {
+        $max_key = length($k) if length($k) > $max_key;
+    }
+    $bar_inner = term_width() - $decimal - $len - $max_key - 11;
     $bar_inner = 10 if $bar_inner < 10;
 }
 if ($numeric) {

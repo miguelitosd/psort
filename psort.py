@@ -119,7 +119,8 @@ def main():
     bar_width = 0
     if args.histogram and not (args.csv or args.csvall):
         term_cols = shutil.get_terminal_size(fallback=(80, 24)).columns
-        bar_width = max(10, term_cols - args.decimal - len_tot - 10)
+        max_key = max((len(k) for k in keys), default=0)
+        bar_width = max(10, term_cols - args.decimal - len_tot - max_key - 11)
 
     for key in keys:
         pout(key, counts[key], tot, len_tot, args.decimal, args.csv, args.csvall,

@@ -165,7 +165,13 @@ func main() {
 
 	barWidth := 0
 	if *histogram && !*csv && !*csvall {
-		barWidth = termWidth() - *decimal - lenTot - 10
+		maxKey := 0
+		for _, k := range keys {
+			if len(k) > maxKey {
+				maxKey = len(k)
+			}
+		}
+		barWidth = termWidth() - *decimal - lenTot - maxKey - 11
 		if barWidth < 10 {
 			barWidth = 10
 		}
