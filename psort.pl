@@ -1,6 +1,6 @@
 #!/usr/bin/perl -w
 use strict;
-use Getopt::Long;
+use Getopt::Long qw(:config no_ignore_case);
 my $tot=0;
 my %data=();
 my $decimal=4;
@@ -17,6 +17,7 @@ GetOptions(
     "fullperc|f"    => \my $fullperc,
     "ignore|i"      => \my $ignoreExcluded,
     "reverse|r"     => \my $reverse,
+    "histogram|H"   => \my $histogram,
 );
 
 if (($fullperc) and (!$mincount) and (!$maxcount)) {
@@ -65,9 +66,14 @@ if (($mincount) or ($maxcount)) {
 }
 
 if ($tot eq 0) { exit; }
-# Get max width of number column
 
 my $len = length($tot);
+
+my $bar_inner = 0;
+if ($histogram && !$csv && !$csvall) {
+    $bar_inner = term_width() - $decimal - $len - 10;
+    $bar_inner = 10 if $bar_inner < 10;
+}
 if ($numeric) {
     foreach my $key ($reverse ? (sort { $b <=> $a } keys %data)
                               : (sort { $a <=> $b } keys %data)) {
@@ -79,31 +85,54 @@ if ($numeric) {
         pout($key);
     }
 }
-if ($csv) {
+if ($histogram && !$csv && !$csvall) {
+    my $w = $bar_inner + 3 + $decimal + 4;
+    printf("%${w}s  %${len}d\n", 'Total:', $tot);
+} elsif ($csv) {
     printf("%8s,%${len}d\n",'Total:',$tot);
 } else {
     printf("%8s  %${len}d\n",'Total:',$tot);
 }
 
+sub term_width {
+    return $ENV{COLUMNS} if $ENV{COLUMNS} && $ENV{COLUMNS} =~ /^\d+$/;
+    my $winsize = "\x00" x 8;
+    if (ioctl(STDOUT, 0x5413, $winsize)) {
+        my (undef, $cols) = unpack('SS', $winsize);
+        return $cols if $cols > 0;
+    }
+    return 80;
+}
+
+sub bar_str {
+    my ($p, $w) = @_;
+    my $filled = int($p / 100.0 * $w);
+    $filled = $w if $filled > $w;
+    return '[' . '#' x $filled . ' ' x ($w - $filled) . ']';
+}
+
 sub pout {
     my $key = shift;
-	my $p=(($data{$key}/$tot)*100);
-        if (($csv) or ($csvall)) {
-            if ($csvall) {
-                $key =~ s/\s+/,/g;
-            }
-            if ( $p < 10 ) {
-                printf("%1.${decimal}f%s,%d,%s\n",$p,'%',$data{$key},$key);
-            } else {
-                printf("%2.${decimal}f%s,%d,%s\n",$p,'%',$data{$key},$key);
-            }
+    my $p=(($data{$key}/$tot)*100);
+    if (($csv) or ($csvall)) {
+        if ($csvall) { $key =~ s/\s+/,/g; }
+        if ( $p < 10 ) {
+            printf("%1.${decimal}f%s,%d,%s\n",$p,'%',$data{$key},$key);
         } else {
-            if ( $p < 10 ) {
-                printf(" %1.${decimal}f%s  %${len}d %s\n",$p,'%',$data{$key},$key);
-            } else {
-                printf("%2.${decimal}f%s  %${len}d %s\n",$p,'%',$data{$key},$key);
-            }
+            printf("%2.${decimal}f%s,%d,%s\n",$p,'%',$data{$key},$key);
         }
+    } elsif ($histogram) {
+        my $perc = $p < 10
+            ? sprintf(" %1.${decimal}f%%", $p)
+            : sprintf("%2.${decimal}f%%", $p);
+        printf("%s %s  %${len}d %s\n", bar_str($p, $bar_inner), $perc, $data{$key}, $key);
+    } else {
+        if ( $p < 10 ) {
+            printf(" %1.${decimal}f%s  %${len}d %s\n",$p,'%',$data{$key},$key);
+        } else {
+            printf("%2.${decimal}f%s  %${len}d %s\n",$p,'%',$data{$key},$key);
+        }
+    }
 }
 
 
@@ -123,6 +152,7 @@ sub usage {
     --ignore    : When using min/max and fullperc, don't include the [excluded] line
                    that shows us the full 100%
     --reverse,-r: Reverse the sort order (highest count/value first)
+    --histogram,-H: Show a bar histogram scaled to terminal width
     --help      : Output this help info
 
 Synopsis: Takes input and essentially does the equivalent of `sort | uniq -c | sort -n` 

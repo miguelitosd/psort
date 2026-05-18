@@ -45,7 +45,7 @@ Software.
 
 * Overview::             What psort does
 * Options::              Command-line options reference
-* Output Format::        How output is structured
+* Output Format::        Default, histogram, and CSV output formats
 * Examples::             Common usage patterns
 * Implementations::      The four language ports
 * Benchmarks::           Performance comparisons and methodology
@@ -139,6 +139,13 @@ File: psort.info,  Node: Options,  Next: Output Format,  Prev: Overview,  Up: To
      Reverse the sort order so the highest count (or highest numeric
      value with ‘--numeric’) appears first.
 
+‘-H’
+‘--histogram’
+     Display a bar graph alongside each percentage, scaled to the
+     terminal width.  The bar column precedes the percentage so relative
+     sizes are immediately visible.  Ignored silently when ‘--csv’ or
+     ‘--csvall’ is active.
+
 ‘-h’
 ‘--help’
      Print a usage summary and exit.
@@ -149,6 +156,18 @@ File: psort.info,  Node: Output Format,  Next: Examples,  Prev: Options,  Up: To
 3 Output Format
 ***************
 
+* Menu:
+
+* Default Format::     Normal aligned-column output
+* Histogram Format::   Bar-graph output with ‘-H’
+* CSV Format::         Machine-readable CSV output
+
+
+File: psort.info,  Node: Default Format,  Next: Histogram Format,  Up: Output Format
+
+3.1 Default Format
+==================
+
 The default (human-readable) output format per entry is:
 
      PERCENTAGE%  COUNT VALUE
@@ -157,7 +176,36 @@ The default (human-readable) output format per entry is:
 points align.  The count column is right-justified to the width of the
 largest count.
 
-   CSV output (‘-c’ or ‘-a’):
+
+File: psort.info,  Node: Histogram Format,  Next: CSV Format,  Prev: Default Format,  Up: Output Format
+
+3.2 Histogram Format
+====================
+
+With ‘-H’ / ‘--histogram’, each entry is prefixed by a bar proportional
+to its percentage:
+
+     [BAR] PERCENTAGE%  COUNT VALUE
+
+   The bar width is computed from the terminal width (via ‘TIOCGWINSZ’
+or ‘shutil.get_terminal_size’) minus the space needed for the
+fixed-width columns, so the bars fill most of the available line.  If
+the terminal width cannot be determined, 80 columns is assumed.  The
+‘COLUMNS’ environment variable overrides the detected width.
+
+   The ‘Total:’ line is indented to keep its count field aligned with
+the count column above it.
+
+   ‘--histogram’ is silently ignored when ‘--csv’ or ‘--csvall’ is
+active.
+
+
+File: psort.info,  Node: CSV Format,  Prev: Histogram Format,  Up: Output Format
+
+3.3 CSV Format
+==============
+
+CSV output (‘-c’ or ‘-a’):
 
      PERCENTAGE%,COUNT,VALUE
 
@@ -542,6 +590,7 @@ Concept Index
 * Go implementation:                     Implementations.      (line 21)
 * hash table:                            The C Hash Bug.       (line  6)
 * hash table, open-addressing:           Implementations.      (line 16)
+* histogram:                             Options.              (line 59)
 * implementations:                       Implementations.      (line  6)
 * input size:                            Scaling.              (line  6)
 * installation:                          Installation.         (line  6)
@@ -575,22 +624,25 @@ Concept Index
 
 Tag Table:
 Node: Top842
-Node: Overview2083
-Node: Options3085
-Node: Output Format4788
-Node: Examples5460
-Node: Implementations6271
-Node: Benchmarks7833
-Node: Methodology8239
-Node: Results8983
-Node: Scaling12024
-Node: The C Hash Bug13156
-Node: Observations14646
-Node: Installation16399
-Node: RPM Installation16662
-Node: Debian Installation17226
-Node: Manual Installation17490
-Node: Concept Index17922
+Node: Overview2101
+Node: Options3103
+Node: Output Format5078
+Node: Default Format5363
+Node: Histogram Format5733
+Node: CSV Format6556
+Node: Examples6979
+Node: Implementations7790
+Node: Benchmarks9352
+Node: Methodology9758
+Node: Results10502
+Node: Scaling13543
+Node: The C Hash Bug14675
+Node: Observations16165
+Node: Installation17918
+Node: RPM Installation18181
+Node: Debian Installation18745
+Node: Manual Installation19009
+Node: Concept Index19441
 
 End Tag Table
 

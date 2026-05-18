@@ -45,6 +45,7 @@ Usage: psort [options] [file ...]
     --ignore, -i  : With --min/--max, suppress the [excluded] summary line
     --verbose, -v : With --min/--max, print key/count totals before and after
     --reverse, -r : Reverse sort order (highest count/value first)
+    --histogram,-H: Show a bar histogram scaled to terminal width
     --help, -h    : Output this help info
 
 Synopsis: Takes input and essentially does the equivalent of `sort | uniq -c | sort -n`

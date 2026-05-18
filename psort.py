@@ -3,20 +3,27 @@
 
 import argparse
 import re
+import shutil
 import sys
 
 
-def pout(key, count, tot, len_tot, decimal, csv_mode, csvall):
+def bar_str(p, bar_width):
+    filled = min(int(p / 100.0 * bar_width), bar_width)
+    return '[' + '#' * filled + ' ' * (bar_width - filled) + ']'
+
+
+def pout(key, count, tot, len_tot, decimal, csv_mode, csvall, histogram, bar_width):
     p = (count / tot) * 100.0
     out_key = re.sub(r'\s+', ',', key) if csvall else key
     p_str = f"{p:.{decimal}f}"
     if csv_mode or csvall:
         print(f"{p_str}%,{count},{out_key}")
     else:
-        if p < 10:
-            print(f" {p_str}%  {count:{len_tot}d} {out_key}")
+        perc = f" {p_str}%" if p < 10 else f"{p_str}%"
+        if histogram:
+            print(f"{bar_str(p, bar_width)} {perc}  {count:{len_tot}d} {out_key}")
         else:
-            print(f"{p_str}%  {count:{len_tot}d} {out_key}")
+            print(f"{perc}  {count:{len_tot}d} {out_key}")
 
 
 def main():
@@ -40,8 +47,9 @@ def main():
     parser.add_argument('-f', '--fullperc', action='store_true', help='With min/max, compute %% based on full count rather than filtered count')
     parser.add_argument('-i', '--ignore',   action='store_true', help='With min/max, suppress the [excluded] summary line')
     parser.add_argument('-v', '--verbose',  action='store_true', help='With min/max, print key/count totals before and after filtering')
-    parser.add_argument('-r', '--reverse',  action='store_true', help='Reverse the sort order (highest count/value first)')
-    parser.add_argument('-h', '--help',     action='help',       help='Output this help info')
+    parser.add_argument('-r', '--reverse',   action='store_true', help='Reverse the sort order (highest count/value first)')
+    parser.add_argument('-H', '--histogram', action='store_true', help='Show a bar histogram scaled to terminal width')
+    parser.add_argument('-h', '--help',      action='help',       help='Output this help info')
     parser.add_argument('files', nargs='*', metavar='file')
 
     args = parser.parse_args()
@@ -108,10 +116,19 @@ def main():
 
     len_tot = len(str(tot))
 
-    for key in keys:
-        pout(key, counts[key], tot, len_tot, args.decimal, args.csv, args.csvall)
+    bar_width = 0
+    if args.histogram and not (args.csv or args.csvall):
+        term_cols = shutil.get_terminal_size(fallback=(80, 24)).columns
+        bar_width = max(10, term_cols - args.decimal - len_tot - 10)
 
-    if args.csv or args.csvall:
+    for key in keys:
+        pout(key, counts[key], tot, len_tot, args.decimal, args.csv, args.csvall,
+             args.histogram, bar_width)
+
+    if args.histogram and not (args.csv or args.csvall):
+        indent = bar_width + 3 + args.decimal + 4
+        print(f"{'Total:':>{indent}}  {tot:{len_tot}d}")
+    elif args.csv or args.csvall:
         print(f"{'Total:':>8},{tot:{len_tot}d}")
     else:
         print(f"{'Total:':>8}  {tot:{len_tot}d}")

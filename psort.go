@@ -8,9 +8,36 @@ import (
 	"regexp"
 	"sort"
 	"strconv"
+	"strings"
+	"syscall"
+	"unsafe"
 )
 
 var reWhitespace = regexp.MustCompile(`\s+`)
+
+type winsize struct{ Rows, Cols, X, Y uint16 }
+
+func termWidth() int {
+	if s := os.Getenv("COLUMNS"); s != "" {
+		if n, err := strconv.Atoi(s); err == nil && n > 0 {
+			return n
+		}
+	}
+	var ws winsize
+	r, _, _ := syscall.Syscall(syscall.SYS_IOCTL, 1, 0x5413, uintptr(unsafe.Pointer(&ws)))
+	if r == 0 && ws.Cols > 0 {
+		return int(ws.Cols)
+	}
+	return 80
+}
+
+func makeBar(p float64, barWidth int) string {
+	filled := int(p / 100.0 * float64(barWidth))
+	if filled > barWidth {
+		filled = barWidth
+	}
+	return "[" + strings.Repeat("#", filled) + strings.Repeat(" ", barWidth-filled) + "]"
+}
 
 func main() {
 	csv := flag.Bool("csv", false, "Do output as csv rather than formatted for a human to read")
@@ -32,6 +59,8 @@ func main() {
 	flag.BoolVar(verbose, "v", false, "")
 	reverse := flag.Bool("reverse", false, "Reverse the sort order (highest count/value first)")
 	flag.BoolVar(reverse, "r", false, "")
+	histogram := flag.Bool("histogram", false, "Show a bar histogram scaled to terminal width")
+	flag.BoolVar(histogram, "H", false, "")
 	flag.Usage = usage
 	flag.Parse()
 
@@ -134,18 +163,28 @@ func main() {
 
 	lenTot := len(strconv.Itoa(tot))
 
-	for _, key := range keys {
-		pout(key, counts[key], tot, lenTot, *decimal, *csv, *csvall)
+	barWidth := 0
+	if *histogram && !*csv && !*csvall {
+		barWidth = termWidth() - *decimal - lenTot - 10
+		if barWidth < 10 {
+			barWidth = 10
+		}
 	}
 
-	if *csv || *csvall {
+	for _, key := range keys {
+		pout(key, counts[key], tot, lenTot, *decimal, *csv, *csvall, *histogram, barWidth)
+	}
+
+	if *histogram && !*csv && !*csvall {
+		fmt.Printf("%*s  %*d\n", barWidth+3+*decimal+4, "Total:", lenTot, tot)
+	} else if *csv || *csvall {
 		fmt.Printf("%8s,%*d\n", "Total:", lenTot, tot)
 	} else {
 		fmt.Printf("%8s  %*d\n", "Total:", lenTot, tot)
 	}
 }
 
-func pout(key string, count, tot, lenTot, decimal int, csv, csvall bool) {
+func pout(key string, count, tot, lenTot, decimal int, csv, csvall, histogram bool, barWidth int) {
 	p := (float64(count) / float64(tot)) * 100.0
 
 	outKey := key
@@ -159,6 +198,14 @@ func pout(key string, count, tot, lenTot, decimal int, csv, csvall bool) {
 	}
 	if csv || csvall {
 		fmt.Printf("%*.*f%%,%d,%s\n", width, decimal, p, count, outKey)
+	} else if histogram {
+		var percStr string
+		if p < 10 {
+			percStr = " " + fmt.Sprintf("%.*f%%", decimal, p)
+		} else {
+			percStr = fmt.Sprintf("%.*f%%", decimal, p)
+		}
+		fmt.Printf("%s %s  %*d %s\n", makeBar(p, barWidth), percStr, lenTot, count, outKey)
 	} else {
 		if p < 10 {
 			fmt.Printf(" %*.*f%%  %*d %s\n", width, decimal, p, lenTot, count, outKey)
@@ -185,6 +232,7 @@ func usage() {
                     that shows us the full 100%%
     --verbose, -v: When using min/max, print key/count totals before and after filtering
     --reverse,-r : Reverse the sort order (highest count/value first)
+    --histogram,-H: Show a bar histogram scaled to terminal width
     --help, -h   : Output this help info
 
 Synopsis: Takes input and essentially does the equivalent of `+"`"+`sort | uniq -c | sort -n`+"`"+`

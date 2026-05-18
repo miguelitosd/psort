@@ -90,8 +90,36 @@ Reverse the sort order so the highest count (or highest numeric value with
 .BR \-\-numeric )
 appears first.
 .TP
+.BR \-H ", " \-\-histogram
+Display a bar graph alongside each percentage, scaled to the terminal
+width.  The bar column precedes the percentage so relative sizes are
+immediately visible.  Ignored when
+.B \-\-csv
+or
+.B \-\-csvall
+is active.
+.TP
 .BR \-h ", " \-\-help
 Print a usage summary and exit.
+.SH HISTOGRAM OUTPUT FORMAT
+With
+.BR \-H ,
+each entry line is prefixed by a bar whose fill is proportional to the
+entry's percentage of the total:
+.PP
+.RS
+.nf
+[\fIbar\fR] \fIpercentage\fR%  \fIcount\fR \fIvalue\fR
+.fi
+.RE
+.PP
+The bar width is computed from the terminal width (via
+.BR TIOCGWINSZ )
+minus the fixed-width columns, so it fills available space.
+If the terminal width cannot be determined, 80 columns is assumed.
+The
+.SB COLUMNS
+environment variable overrides the detected width.
 .SH OUTPUT FORMAT
 Default (human-readable) output format per line:
 .PP

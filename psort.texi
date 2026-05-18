@@ -51,7 +51,7 @@ displays the results with percentages.
 @menu
 * Overview::             What psort does
 * Options::              Command-line options reference
-* Output Format::        How output is structured
+* Output Format::        Default, histogram, and CSV output formats
 * Examples::             Common usage patterns
 * Implementations::      The four language ports
 * Benchmarks::           Performance comparisons and methodology
@@ -163,6 +163,14 @@ error the number of keys and total count before and after filtering.
 Reverse the sort order so the highest count (or highest numeric value
 with @option{--numeric}) appears first.
 
+@item -H
+@itemx --histogram
+@cindex histogram
+Display a bar graph alongside each percentage, scaled to the terminal
+width.  The bar column precedes the percentage so relative sizes are
+immediately visible.  Ignored silently when @option{--csv} or
+@option{--csvall} is active.
+
 @item -h
 @itemx --help
 Print a usage summary and exit.
@@ -173,6 +181,15 @@ Print a usage summary and exit.
 @chapter Output Format
 @cindex output format
 
+@menu
+* Default Format::     Normal aligned-column output
+* Histogram Format::   Bar-graph output with @option{-H}
+* CSV Format::         Machine-readable CSV output
+@end menu
+
+@node Default Format
+@section Default Format
+
 The default (human-readable) output format per entry is:
 
 @example
@@ -182,6 +199,31 @@ The default (human-readable) output format per entry is:
 Percentages below 10 are padded with a leading space so decimal points
 align.  The count column is right-justified to the width of the largest
 count.
+
+@node Histogram Format
+@section Histogram Format
+
+With @option{-H} / @option{--histogram}, each entry is prefixed by a
+bar proportional to its percentage:
+
+@example
+[@var{bar}] @var{percentage}%  @var{count} @var{value}
+@end example
+
+The bar width is computed from the terminal width (via @code{TIOCGWINSZ}
+or @code{shutil.get_terminal_size}) minus the space needed for the
+fixed-width columns, so the bars fill most of the available line.  If
+the terminal width cannot be determined, 80 columns is assumed.  The
+@env{COLUMNS} environment variable overrides the detected width.
+
+The @samp{Total:} line is indented to keep its count field aligned with
+the count column above it.
+
+@option{--histogram} is silently ignored when @option{--csv} or
+@option{--csvall} is active.
+
+@node CSV Format
+@section CSV Format
 
 CSV output (@option{-c} or @option{-a}):
 

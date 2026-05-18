@@ -7,6 +7,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include <getopt.h>
+#include <sys/ioctl.h>
+#include <unistd.h>
 
 /* ── hash table (open addressing, FNV-1a, load ≤ 65 %) ─────────────────── */
 
@@ -84,7 +86,8 @@ static long  opt_max      = 0;
 static int   opt_fullperc = 0;
 static int   opt_ignore   = 0;
 static int   opt_verbose  = 0;
-static int   opt_reverse  = 0;
+static int   opt_reverse   = 0;
+static int   opt_histogram = 0;
 
 /* Collect live hash table slots into the entries[] array. */
 static void ht_to_entries(void)
@@ -127,7 +130,17 @@ static int cmp_by_numeric(const void *a, const void *b)
     return opt_reverse ? -r : r;
 }
 
-static void pout(const Entry *e, int len)
+static int term_width(void)
+{
+    const char *s = getenv("COLUMNS");
+    if (s) { int c = atoi(s); if (c > 0) return c; }
+    struct winsize ws;
+    if (ioctl(STDOUT_FILENO, TIOCGWINSZ, &ws) == 0 && ws.ws_col > 0)
+        return (int)ws.ws_col;
+    return 80;
+}
+
+static void pout(const Entry *e, int len, int bar_inner)
 {
     double p = ((double)e->count / (double)tot) * 100.0;
     char *key = e->key;
@@ -147,6 +160,23 @@ static void pout(const Entry *e, int len)
             printf("%1.*f%%,%ld,%s\n",  decimal, p, e->count, key);
         else
             printf("%2.*f%%,%ld,%s\n",  decimal, p, e->count, key);
+    } else if (opt_histogram) {
+        int filled = (int)(p / 100.0 * bar_inner);
+        if (filled > bar_inner) filled = bar_inner;
+        char *bar = malloc((size_t)(bar_inner + 3));
+        if (!bar) { perror("malloc"); exit(1); }
+        bar[0] = '[';
+        memset(bar + 1, '#', (size_t)filled);
+        memset(bar + 1 + filled, ' ', (size_t)(bar_inner - filled));
+        bar[bar_inner + 1] = ']';
+        bar[bar_inner + 2] = '\0';
+        char perc[32];
+        if (p < 10.0)
+            snprintf(perc, sizeof(perc), " %1.*f%%", decimal, p);
+        else
+            snprintf(perc, sizeof(perc), "%2.*f%%", decimal, p);
+        printf("%s %s  %*ld %s\n", bar, perc, len, e->count, key);
+        free(bar);
     } else {
         if (p < 10.0)
             printf(" %1.*f%%  %*ld %s\n", decimal, p, len, e->count, key);
@@ -190,6 +220,7 @@ static void usage(const char *prog)
            "                    that shows us the full 100%%\n"
            "    --verbose, -v: When using min/max, print key/count totals before and after filtering\n"
            "    --reverse,-r : Reverse the sort order (highest count/value first)\n"
+           "    --histogram,-H: Show a bar histogram scaled to terminal width\n"
            "    --help, -h   : Output this help info\n"
            "\n"
            "Synopsis: Takes input and essentially does the equivalent of `sort | uniq -c | sort -n`\n"
@@ -197,7 +228,8 @@ static void usage(const char *prog)
            prog);
 }
 
-#define OPT_NUMERIC 256
+#define OPT_NUMERIC    256
+#define OPT_HISTOGRAM  257
 
 int main(int argc, char *argv[])
 {
@@ -211,13 +243,14 @@ int main(int argc, char *argv[])
         { "fullperc", no_argument,       NULL, 'f' },
         { "ignore",   no_argument,       NULL, 'i' },
         { "verbose",  no_argument,       NULL, 'v' },
-        { "reverse",  no_argument,       NULL, 'r' },
-        { "help",     no_argument,       NULL, 'h' },
+        { "reverse",   no_argument,       NULL, 'r' },
+        { "histogram", no_argument,       NULL, 'H' },
+        { "help",      no_argument,       NULL, 'h' },
         { NULL, 0, NULL, 0 }
     };
 
     int opt;
-    while ((opt = getopt_long(argc, argv, "cad:m:x:fivrh", long_options, NULL)) != -1) {
+    while ((opt = getopt_long(argc, argv, "cad:m:x:fivrHh", long_options, NULL)) != -1) {
         switch (opt) {
             case 'c': opt_csv      = 1;            break;
             case 'a': opt_csvall   = 1;            break;
@@ -228,7 +261,8 @@ int main(int argc, char *argv[])
             case 'f': opt_fullperc = 1;            break;
             case 'i': opt_ignore   = 1;            break;
             case 'v': opt_verbose  = 1;            break;
-            case 'r': opt_reverse  = 1;            break;
+            case 'r': opt_reverse   = 1;            break;
+            case 'H': opt_histogram = 1;            break;
             case 'h': usage(argv[0]); return 0;
             default:  usage(argv[0]); return 1;
         }
@@ -296,10 +330,18 @@ int main(int argc, char *argv[])
 
     int len = snprintf(NULL, 0, "%ld", tot);
 
-    for (int i = 0; i < entry_count; i++)
-        pout(&entries[i], len);
+    int bar_inner = 0;
+    if (opt_histogram && !opt_csv && !opt_csvall) {
+        bar_inner = term_width() - decimal - len - 10;
+        if (bar_inner < 10) bar_inner = 10;
+    }
 
-    if (opt_csv || opt_csvall)
+    for (int i = 0; i < entry_count; i++)
+        pout(&entries[i], len, bar_inner);
+
+    if (opt_histogram && !opt_csv && !opt_csvall)
+        printf("%*s  %*ld\n", bar_inner + 3 + decimal + 4, "Total:", len, tot);
+    else if (opt_csv || opt_csvall)
         printf("%8s,%*ld\n", "Total:", len, tot);
     else
         printf("%8s  %*ld\n", "Total:", len, tot);
