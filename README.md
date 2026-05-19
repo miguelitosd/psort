@@ -45,7 +45,8 @@ Usage: psort [options] [file ...]
     --ignore, -i  : With --min/--max, suppress the [excluded] summary line
     --verbose, -v : With --min/--max, print key/count totals before and after
     --reverse, -r : Reverse sort order (highest count/value first)
-    --histogram,-H: Show a bar histogram scaled to terminal width
+    --histogram,-H: Show a bar histogram; columns are percent, count, value,
+                     then a bar scaled to the remaining terminal width
     --help, -h    : Output this help info
 
 Synopsis: Takes input and essentially does the equivalent of `sort | uniq -c | sort -n`
@@ -67,6 +68,17 @@ awk '{print $9}' access.log | psort -c
 Word frequencies, minimum 10 occurrences, full-total percentages:
 ```
 tr -cs 'A-Za-z' '\n' < doc.txt | tr 'A-Z' 'a-z' | psort --min 10 --fullperc
+```
+
+Histogram — percent, count, and value columns appear first; the bar fills the remaining terminal width:
+```
+❯ cut -d: -f7 /etc/passwd | psort -H
+ 2.4390%   1 /bin/bash         [#                                            ]
+ 2.4390%   1 /bin/sync         [#                                            ]
+ 2.4390%   1 /usr/bin/bash     [#                                            ]
+ 4.8780%   2 /usr/sbin/nologin [##                                           ]
+88.0000%  36 /sbin/nologin     [###########################################  ]
+  Total:  41
 ```
 
 ## Installation

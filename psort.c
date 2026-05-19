@@ -140,7 +140,7 @@ static int term_width(void)
     return 80;
 }
 
-static void pout(const Entry *e, int len, int bar_inner)
+static void pout(const Entry *e, int len, int bar_inner, int max_key)
 {
     double p = ((double)e->count / (double)tot) * 100.0;
     char *key = e->key;
@@ -175,7 +175,7 @@ static void pout(const Entry *e, int len, int bar_inner)
             snprintf(perc, sizeof(perc), " %1.*f%%", decimal, p);
         else
             snprintf(perc, sizeof(perc), "%2.*f%%", decimal, p);
-        printf("%s %s  %*ld %s\n", bar, perc, len, e->count, key);
+        printf("%s  %*ld %-*s %s\n", perc, len, e->count, max_key, key, bar);
         free(bar);
     } else {
         if (p < 10.0)
@@ -331,8 +331,8 @@ int main(int argc, char *argv[])
     int len = snprintf(NULL, 0, "%ld", tot);
 
     int bar_inner = 0;
+    int max_key = 0;
     if (opt_histogram && !opt_csv && !opt_csvall) {
-        int max_key = 0;
         for (int j = 0; j < entry_count; j++) {
             int kl = (int)strlen(entries[j].key);
             if (kl > max_key) max_key = kl;
@@ -342,10 +342,10 @@ int main(int argc, char *argv[])
     }
 
     for (int i = 0; i < entry_count; i++)
-        pout(&entries[i], len, bar_inner);
+        pout(&entries[i], len, bar_inner, max_key);
 
     if (opt_histogram && !opt_csv && !opt_csvall)
-        printf("%*s  %*ld\n", bar_inner + 3 + decimal + 4, "Total:", len, tot);
+        printf("%*s  %*ld\n", decimal + 4, "Total:", len, tot);
     else if (opt_csv || opt_csvall)
         printf("%8s,%*ld\n", "Total:", len, tot);
     else

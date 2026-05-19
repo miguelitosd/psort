@@ -12,7 +12,7 @@ def bar_str(p, bar_width):
     return '[' + '#' * filled + ' ' * (bar_width - filled) + ']'
 
 
-def pout(key, count, tot, len_tot, decimal, csv_mode, csvall, histogram, bar_width):
+def pout(key, count, tot, len_tot, decimal, csv_mode, csvall, histogram, bar_width, max_key):
     p = (count / tot) * 100.0
     out_key = re.sub(r'\s+', ',', key) if csvall else key
     p_str = f"{p:.{decimal}f}"
@@ -21,7 +21,7 @@ def pout(key, count, tot, len_tot, decimal, csv_mode, csvall, histogram, bar_wid
     else:
         perc = f" {p_str}%" if p < 10 else f"{p_str}%"
         if histogram:
-            print(f"{bar_str(p, bar_width)} {perc}  {count:{len_tot}d} {out_key}")
+            print(f"{perc}  {count:{len_tot}d} {out_key:<{max_key}} {bar_str(p, bar_width)}")
         else:
             print(f"{perc}  {count:{len_tot}d} {out_key}")
 
@@ -117,6 +117,7 @@ def main():
     len_tot = len(str(tot))
 
     bar_width = 0
+    max_key = 0
     if args.histogram and not (args.csv or args.csvall):
         term_cols = shutil.get_terminal_size(fallback=(80, 24)).columns
         max_key = max((len(k) for k in keys), default=0)
@@ -124,11 +125,10 @@ def main():
 
     for key in keys:
         pout(key, counts[key], tot, len_tot, args.decimal, args.csv, args.csvall,
-             args.histogram, bar_width)
+             args.histogram, bar_width, max_key)
 
     if args.histogram and not (args.csv or args.csvall):
-        indent = bar_width + 3 + args.decimal + 4
-        print(f"{'Total:':>{indent}}  {tot:{len_tot}d}")
+        print(f"{'Total:':>{args.decimal + 4}}  {tot:{len_tot}d}")
     elif args.csv or args.csvall:
         print(f"{'Total:':>8},{tot:{len_tot}d}")
     else:

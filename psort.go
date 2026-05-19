@@ -164,8 +164,8 @@ func main() {
 	lenTot := len(strconv.Itoa(tot))
 
 	barWidth := 0
+	maxKey := 0
 	if *histogram && !*csv && !*csvall {
-		maxKey := 0
 		for _, k := range keys {
 			if len(k) > maxKey {
 				maxKey = len(k)
@@ -178,11 +178,11 @@ func main() {
 	}
 
 	for _, key := range keys {
-		pout(key, counts[key], tot, lenTot, *decimal, *csv, *csvall, *histogram, barWidth)
+		pout(key, counts[key], tot, lenTot, *decimal, *csv, *csvall, *histogram, barWidth, maxKey)
 	}
 
 	if *histogram && !*csv && !*csvall {
-		fmt.Printf("%*s  %*d\n", barWidth+3+*decimal+4, "Total:", lenTot, tot)
+		fmt.Printf("%*s  %*d\n", *decimal+4, "Total:", lenTot, tot)
 	} else if *csv || *csvall {
 		fmt.Printf("%8s,%*d\n", "Total:", lenTot, tot)
 	} else {
@@ -190,7 +190,7 @@ func main() {
 	}
 }
 
-func pout(key string, count, tot, lenTot, decimal int, csv, csvall, histogram bool, barWidth int) {
+func pout(key string, count, tot, lenTot, decimal int, csv, csvall, histogram bool, barWidth, maxKey int) {
 	p := (float64(count) / float64(tot)) * 100.0
 
 	outKey := key
@@ -211,7 +211,7 @@ func pout(key string, count, tot, lenTot, decimal int, csv, csvall, histogram bo
 		} else {
 			percStr = fmt.Sprintf("%.*f%%", decimal, p)
 		}
-		fmt.Printf("%s %s  %*d %s\n", makeBar(p, barWidth), percStr, lenTot, count, outKey)
+		fmt.Printf("%s  %*d %-*s %s\n", percStr, lenTot, count, maxKey, outKey, makeBar(p, barWidth))
 	} else {
 		if p < 10 {
 			fmt.Printf(" %*.*f%%  %*d %s\n", width, decimal, p, lenTot, count, outKey)
