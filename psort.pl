@@ -1,6 +1,18 @@
 #!/usr/bin/perl -w
 use strict;
 use Getopt::Long qw(:config no_ignore_case);
+use Time::Piece;
+
+my @DATE_FMTS = ('%d %b %Y', '%b %d %Y', '%m/%d/%Y', '%m/%d/%y', '%Y-%m-%d', '%d-%b-%Y');
+
+sub parse_date {
+    my $s = shift;
+    for my $fmt (@DATE_FMTS) {
+        my $t = eval { Time::Piece->strptime($s, $fmt) };
+        return $t->epoch if $t;
+    }
+    return 0;
+}
 my $tot=0;
 my %data=();
 my $decimal=4;
@@ -11,6 +23,7 @@ GetOptions(
     "decimal|d=i"   => \$decimal,
     "help|h"        => sub { usage(); exit 0; },
     "numeric"       => \my $numeric,
+    "date"          => \my $date,
     "min|m=i"       => \my $mincount,
     "max|x=i"       => \my $maxcount,
     "verbose|v"     => \my $verbose,
@@ -78,7 +91,12 @@ if ($histogram && !$csv && !$csvall) {
     $bar_inner = term_width() - $decimal - $len - $max_key - 11;
     $bar_inner = 10 if $bar_inner < 10;
 }
-if ($numeric) {
+if ($date) {
+    foreach my $key ($reverse ? (sort { parse_date($b) <=> parse_date($a) } keys %data)
+                              : (sort { parse_date($a) <=> parse_date($b) } keys %data)) {
+        pout($key);
+    }
+} elsif ($numeric) {
     foreach my $key ($reverse ? (sort { $b <=> $a } keys %data)
                               : (sort { $a <=> $b } keys %data)) {
         pout($key);
@@ -147,6 +165,9 @@ sub usage {
     --decimal   : Specify how many decimal places to compute (default 4)
     --numeric   : If the data being fed to psort is numeric this flag will sort the
                 :  output by that data instead of by counts
+    --date      : Sort output by date value of data; recognises common formats:
+                :  \"22 Jun 2026\", \"Jun 22 2026\", \"06/22/26\", \"06/22/2026\",
+                :  \"2026-06-22\", \"22-Jun-2026\"
     --min       : Give a minimum count below which we should throw out those, to
                    allow trimming smaller values (compute % based upon what's left)
     --max       : Give a maximum count above which we should throw out those, to

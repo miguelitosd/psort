@@ -2,9 +2,27 @@
 """psort — sort | uniq -c | sort -n with percentages."""
 
 import argparse
+from datetime import datetime
 import re
 import shutil
 import sys
+
+_DATE_FORMATS = [
+    "%d %b %Y",
+    "%b %d %Y",
+    "%m/%d/%Y",
+    "%m/%d/%y",
+    "%Y-%m-%d",
+    "%d-%b-%Y",
+]
+
+def _parse_date(s):
+    for fmt in _DATE_FORMATS:
+        try:
+            return datetime.strptime(s, fmt)
+        except ValueError:
+            pass
+    return datetime.min
 
 
 def bar_str(p, bar_width):
@@ -42,6 +60,7 @@ def main():
     parser.add_argument('-a', '--csvall',   action='store_true', help='Do output as csv replacing any/all whitespaces with commas')
     parser.add_argument('-d', '--decimal',  type=int, default=4, metavar='N', help='Specify how many decimal places to compute (default 4)')
     parser.add_argument(      '--numeric',  action='store_true', help='Sort output by numeric value of data instead of by counts')
+    parser.add_argument(      '--date',     action='store_true', help='Sort output by date value of data (e.g. "22 Jun 2026", "06/22/26", "2026-06-22")')
     parser.add_argument('-m', '--min',      type=int, default=0, metavar='N', help='Minimum count; entries below this are excluded')
     parser.add_argument('-x', '--max',      type=int, default=0, metavar='N', help='Maximum count; entries above this are excluded')
     parser.add_argument('-f', '--fullperc', action='store_true', help='With min/max, compute %% based on full count rather than filtered count')
@@ -104,7 +123,9 @@ def main():
     if tot == 0:
         return
 
-    if args.numeric:
+    if args.date:
+        keys = sorted(counts, key=_parse_date, reverse=args.reverse)
+    elif args.numeric:
         def numeric_key(k):
             try:
                 return float(k)

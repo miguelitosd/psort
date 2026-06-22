@@ -2,10 +2,11 @@
  * Reads lines from stdin/files, counts occurrences, sorts by count,
  * and outputs with percentages and totals.
  */
-#define _POSIX_C_SOURCE 200809L
+#define _XOPEN_SOURCE 700
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 #include <getopt.h>
 #include <sys/ioctl.h>
 #include <unistd.h>
@@ -88,6 +89,7 @@ static int   opt_ignore   = 0;
 static int   opt_verbose  = 0;
 static int   opt_reverse   = 0;
 static int   opt_histogram = 0;
+static int   opt_date      = 0;
 
 /* Collect live hash table slots into the entries[] array. */
 static void ht_to_entries(void)
@@ -112,6 +114,35 @@ static Entry *new_entry(const char *key)
     entries[entry_count].count = 0;
     if (!entries[entry_count].key) { perror("strdup"); exit(1); }
     return &entries[entry_count++];
+}
+
+static const char *date_fmts[] = {
+    "%d %b %Y",
+    "%b %d %Y",
+    "%m/%d/%Y",
+    "%m/%d/%y",
+    "%Y-%m-%d",
+    "%d-%b-%Y",
+    NULL
+};
+
+static time_t parse_date(const char *s)
+{
+    struct tm tm;
+    for (int i = 0; date_fmts[i]; i++) {
+        memset(&tm, 0, sizeof(tm));
+        if (strptime(s, date_fmts[i], &tm))
+            return mktime(&tm);
+    }
+    return (time_t)0;
+}
+
+static int cmp_by_date(const void *a, const void *b)
+{
+    time_t da = parse_date(((const Entry *)a)->key);
+    time_t db = parse_date(((const Entry *)b)->key);
+    int r = (da > db) - (da < db);
+    return opt_reverse ? -r : r;
 }
 
 static int cmp_by_count(const void *a, const void *b)
@@ -210,6 +241,9 @@ static void usage(const char *prog)
            "    --decimal, -d: Specify how many decimal places to compute (default 4)\n"
            "    --numeric    : If the data being fed to psort is numeric this flag will sort the\n"
            "                 :  output by that data instead of by counts\n"
+           "    --date       : Sort output by date value of data; recognises common formats:\n"
+           "                 :  \"22 Jun 2026\", \"Jun 22 2026\", \"06/22/26\", \"06/22/2026\",\n"
+           "                 :  \"2026-06-22\", \"22-Jun-2026\"\n"
            "    --min, -m    : Give a minimum count below which we should throw out those, to\n"
            "                    allow trimming smaller values (compute %% based upon what's left)\n"
            "    --max, -x    : Give a maximum count above which we should throw out those, to\n"
@@ -230,6 +264,7 @@ static void usage(const char *prog)
 
 #define OPT_NUMERIC    256
 #define OPT_HISTOGRAM  257
+#define OPT_DATE       258
 
 int main(int argc, char *argv[])
 {
@@ -238,6 +273,7 @@ int main(int argc, char *argv[])
         { "csvall",   no_argument,       NULL, 'a' },
         { "decimal",  required_argument, NULL, 'd' },
         { "numeric",  no_argument,       NULL, OPT_NUMERIC },
+        { "date",     no_argument,       NULL, OPT_DATE },
         { "min",      required_argument, NULL, 'm' },
         { "max",      required_argument, NULL, 'x' },
         { "fullperc", no_argument,       NULL, 'f' },
@@ -256,6 +292,7 @@ int main(int argc, char *argv[])
             case 'a': opt_csvall   = 1;            break;
             case 'd': decimal      = atoi(optarg); break;
             case OPT_NUMERIC: opt_numeric = 1;     break;
+            case OPT_DATE:    opt_date    = 1;     break;
             case 'm': opt_min      = atol(optarg); break;
             case 'x': opt_max      = atol(optarg); break;
             case 'f': opt_fullperc = 1;            break;
@@ -326,7 +363,7 @@ int main(int argc, char *argv[])
     if (tot == 0) return 0;
 
     qsort(entries, (size_t)entry_count, sizeof(Entry),
-          opt_numeric ? cmp_by_numeric : cmp_by_count);
+          opt_date ? cmp_by_date : (opt_numeric ? cmp_by_numeric : cmp_by_count));
 
     int len = snprintf(NULL, 0, "%ld", tot);
 

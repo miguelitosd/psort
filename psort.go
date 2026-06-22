@@ -10,6 +10,7 @@ import (
 	"strconv"
 	"strings"
 	"syscall"
+	"time"
 	"unsafe"
 )
 
@@ -31,6 +32,29 @@ func termWidth() int {
 	return 80
 }
 
+var dateFormats = []string{
+	"02 Jan 2006",
+	"2 Jan 2006",
+	"Jan 02 2006",
+	"Jan 2 2006",
+	"01/02/2006",
+	"1/2/2006",
+	"01/02/06",
+	"1/2/06",
+	"2006-01-02",
+	"02-Jan-2006",
+	"2-Jan-2006",
+}
+
+func parseDate(s string) time.Time {
+	for _, f := range dateFormats {
+		if t, err := time.Parse(f, s); err == nil {
+			return t
+		}
+	}
+	return time.Time{}
+}
+
 func makeBar(p float64, barWidth int) string {
 	filled := int(p / 100.0 * float64(barWidth))
 	if filled > barWidth {
@@ -47,6 +71,7 @@ func main() {
 	decimal := flag.Int("decimal", 4, "Specify how many decimal places to compute (default 4)")
 	flag.IntVar(decimal, "d", 4, "")
 	numeric := flag.Bool("numeric", false, "Sort output by numeric value of data instead of by counts")
+	date := flag.Bool("date", false, "Sort output by date value of data (e.g. \"22 Jun 2026\", \"06/22/26\", \"2026-06-22\")")
 	mincount := flag.Int("min", 0, "Minimum count; entries below this are excluded")
 	flag.IntVar(mincount, "m", 0, "")
 	maxcount := flag.Int("max", 0, "Maximum count; entries above this are excluded")
@@ -143,7 +168,16 @@ func main() {
 		keys = append(keys, k)
 	}
 
-	if *numeric {
+	if *date {
+		sort.Slice(keys, func(i, j int) bool {
+			di := parseDate(keys[i])
+			dj := parseDate(keys[j])
+			if *reverse {
+				return di.After(dj)
+			}
+			return di.Before(dj)
+		})
+	} else if *numeric {
 		sort.Slice(keys, func(i, j int) bool {
 			vi, _ := strconv.ParseFloat(keys[i], 64)
 			vj, _ := strconv.ParseFloat(keys[j], 64)
@@ -228,6 +262,9 @@ func usage() {
     --decimal, -d: Specify how many decimal places to compute (default 4)
     --numeric    : If the data being fed to psort is numeric this flag will sort the
                  :  output by that data instead of by counts
+    --date       : Sort output by date value of data; recognises common formats:
+                 :  "22 Jun 2026", "Jun 22 2026", "06/22/26", "06/22/2026",
+                 :  "2026-06-22", "22-Jun-2026"
     --min, -m    : Give a minimum count below which we should throw out those, to
                     allow trimming smaller values (compute %% based upon what's left)
     --max, -x    : Give a maximum count above which we should throw out those, to
