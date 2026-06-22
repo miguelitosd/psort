@@ -1,5 +1,5 @@
 Name:           psort
-Version:        1.0.0
+Version:        1.0.1
 Release:        1%{?dist}
 Summary:        Count input lines, sort by frequency, display with percentages
 License:        MIT
@@ -74,5 +74,9 @@ fi
 %ghost %{_bindir}/psort
 
 %changelog
+* Mon 22 Jun 2026 Mike Marion <mm-claudeai@miguelito.org> - 1.0.1-1
+- Add --date option to sort output by date string value
+- Move histogram bar to right of percent/count/data columns
+
 * Sun 17 May 2026 Mike Marion <mm-claudeai@miguelito.org> - 1.0.0-1
 - Initial package

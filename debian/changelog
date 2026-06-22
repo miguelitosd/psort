@@ -1,3 +1,10 @@
+psort (1.0.1-1) unstable; urgency=low
+
+  * Add --date option to sort output by date string value.
+  * Move histogram bar to right of percent/count/data columns.
+
+ -- Mike Marion <mm-claudeai@miguelito.org>  Mon, 22 Jun 2026 16:59:12 -0700
+
 psort (1.0.0-1) unstable; urgency=low
 
   * Initial Debian package.
