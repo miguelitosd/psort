@@ -46,6 +46,20 @@ var dateFormats = []string{
 	"2-Jan-2006",
 }
 
+var canonicalDateFormats = []string{
+	"02 Jan 2006",
+	"02 Jan 2006",
+	"Jan 02 2006",
+	"Jan 02 2006",
+	"01/02/2006",
+	"01/02/2006",
+	"01/02/06",
+	"01/02/06",
+	"2006-01-02",
+	"02-Jan-2006",
+	"02-Jan-2006",
+}
+
 func parseDate(s string) time.Time {
 	for _, f := range dateFormats {
 		if t, err := time.Parse(f, s); err == nil {
@@ -53,6 +67,15 @@ func parseDate(s string) time.Time {
 		}
 	}
 	return time.Time{}
+}
+
+func normalizeDate(s string) string {
+	for i, f := range dateFormats {
+		if t, err := time.Parse(f, s); err == nil {
+			return t.Format(canonicalDateFormats[i])
+		}
+	}
+	return s
 }
 
 func makeBar(p float64, barWidth int) string {
@@ -102,6 +125,9 @@ func main() {
 		scanner := bufio.NewScanner(f)
 		for scanner.Scan() {
 			line := scanner.Text()
+			if *date {
+				line = normalizeDate(line)
+			}
 			counts[line]++
 			tot++
 		}

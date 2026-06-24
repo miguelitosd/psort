@@ -25,6 +25,15 @@ def _parse_date(s):
     return datetime.min
 
 
+def _normalize_date_key(s):
+    for fmt in _DATE_FORMATS:
+        try:
+            return datetime.strptime(s, fmt).strftime(fmt)
+        except ValueError:
+            pass
+    return s
+
+
 def bar_str(p, bar_width):
     filled = min(int(p / 100.0 * bar_width), bar_width)
     return '[' + '#' * filled + ' ' * (bar_width - filled) + ']'
@@ -85,6 +94,8 @@ def main():
         nonlocal tot
         for line in f:
             line = line.rstrip('\n').rstrip('\r')
+            if args.date:
+                line = _normalize_date_key(line)
             counts[line] = counts.get(line, 0) + 1
             tot += 1
 

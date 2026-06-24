@@ -13,6 +13,15 @@ sub parse_date {
     }
     return 0;
 }
+
+sub normalize_date {
+    my $s = shift;
+    for my $fmt (@DATE_FMTS) {
+        my $t = eval { Time::Piece->strptime($s, $fmt) };
+        return $t->strftime($fmt) if $t;
+    }
+    return $s;
+}
 my $tot=0;
 my %data=();
 my $decimal=4;
@@ -41,7 +50,8 @@ if (($fullperc) and (!$mincount) and (!$maxcount)) {
 
 while (<>) {
 		chomp;
-		$data{$_}++; # Gets us uniq -c equiv
+		$_ = normalize_date($_) if $date;
+		$data{$_}++;
 		$tot++;
 }
 

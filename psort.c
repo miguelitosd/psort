@@ -131,10 +131,26 @@ static time_t parse_date(const char *s)
     struct tm tm;
     for (int i = 0; date_fmts[i]; i++) {
         memset(&tm, 0, sizeof(tm));
-        if (strptime(s, date_fmts[i], &tm))
+        char *end = strptime(s, date_fmts[i], &tm);
+        if (end && *end == '\0')
             return mktime(&tm);
     }
     return (time_t)0;
+}
+
+static char *normalize_date(const char *s)
+{
+    struct tm tm;
+    for (int i = 0; date_fmts[i]; i++) {
+        memset(&tm, 0, sizeof(tm));
+        char *end = strptime(s, date_fmts[i], &tm);
+        if (end && *end == '\0') {
+            char buf[64];
+            strftime(buf, sizeof(buf), date_fmts[i], &tm);
+            return strdup(buf);
+        }
+    }
+    return strdup(s);
 }
 
 static int cmp_by_date(const void *a, const void *b)
@@ -227,7 +243,13 @@ static void process_stream(FILE *f)
     while ((linelen = getline(&line, &linecap, f)) > 0) {
         if (linelen > 0 && line[linelen - 1] == '\n')
             line[--linelen] = '\0';
-        ht_get(line)->count++;
+        if (opt_date) {
+            char *norm = normalize_date(line);
+            ht_get(norm)->count++;
+            free(norm);
+        } else {
+            ht_get(line)->count++;
+        }
         tot++;
     }
     free(line);
